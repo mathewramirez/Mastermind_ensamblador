@@ -1,0 +1,7 @@
+# intermedios de TASM/TLINK (se regeneran con BUILD.bat)
+*.OBJ
+*.obj
+*.MAP
+*.map
+# DOSBox instalado localmente (cada quien tiene el suyo)
+DOSBox-0.74-3/

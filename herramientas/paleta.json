@@ -1,0 +1,12 @@
+{
+  "_nota": "Colores de INTERFAZ (fondos, paneles, texto). Los colores de los sprites se agregan solos despues de estos. 'inicio' = primer indice VGA que se redefine.",
+  "inicio": 16,
+  "colores": [
+    {"nombre": "fondo",   "hex": "#0B1530"},
+    {"nombre": "panel",   "hex": "#14264F"},
+    {"nombre": "fila",    "hex": "#1B3060"},
+    {"nombre": "borde",   "hex": "#3D6FB8"},
+    {"nombre": "texto",   "hex": "#E8ECF4"},
+    {"nombre": "acento",  "hex": "#D21E1E"}
+  ]
+}
