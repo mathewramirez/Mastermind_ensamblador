@@ -185,9 +185,9 @@ DibujarSprite PROC
 dsFila:
         mov  cx, [bp+10]        ; CX = columnas de esta fila
 dsColumna:
-        lodsb                   ; AL = siguiente pixel del sprite
-        or   al, al             ; pone ZF=1 si AL==0, sin cambiar AL
-        jz   dsTransparente
+        lodsb                          ; AL = siguiente pixel del sprite
+        cmp   al, COLOR_TRANSP             ; pone ZF=1 si AL==0, sin cambiar AL
+        je   dsTransparente
         mov  es:[di], al
 dsTransparente:
         inc  di
