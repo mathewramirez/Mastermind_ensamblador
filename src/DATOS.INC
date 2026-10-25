@@ -97,3 +97,38 @@ numBuf          DB 4 DUP(0)     ; digitos de un numero convertido a texto
 diez            DB 10           ; divisor para separar decenas y unidades
 
 msgVis          DB 0            ; 1 = la barra de estado muestra un aviso (no la ayuda)
+
+; --- Fase 7: fondo opcional para DibujarSprite (anti-parpadeo) ---
+; 0FFFFh = los pixeles transparentes no se escriben (comportamiento normal).
+; Un valor 0..255 = los pixeles transparentes se pintan de ese color, asi el
+; sprite se dibuja en UNA sola pasada sin borrar antes (RG-08).
+fondoSprite     DW 0FFFFh
+
+
+
+; --- Extra: cronometro de partida (tics del BIOS) ---
+; fondoTexto: igual que fondoSprite pero para texto. 0FFFFh = sin fondo;
+; 0..255 = los pixeles apagados del glifo se pintan con ese color.
+fondoTexto      DW 0FFFFh
+ticsPartida     DW 0            ; tics del BIOS al empezar la partida (parte baja)
+segMostrados    DW 0FFFFh       ; ultimo valor dibujado en el encabezado
+tiempoFinal     DW 0            ; segundos que duro la ultima partida
+tiempoBuf       DB 'Tiempo 00:00',0     ; los digitos empiezan en el byte 7
+tiempoFinBuf    DB 'Tiempo: 00:00',0    ; los digitos empiezan en el byte 8
+
+; --- Extra: sonido por el altavoz interno ---
+; Cada nota: DW divisor (frecuencia = 1193180 / divisor), DW duracion en tics.
+; El divisor 0 cierra la tabla.
+sonPtr          DW 0            ; proxima nota por tocar (0 = silencio)
+sonIni          DW 0            ; tics del BIOS cuando empezo la nota actual
+sonDur          DW 0            ; duracion de la nota actual en tics
+
+sndCambio       DW 1356, 1, 0                           ; 880 Hz: clic al mover o poner ficha
+sndError        DW 5966, 3, 0                           ; 200 Hz: intento incompleto
+sndConfirmar    DW 2386, 1, 1705, 1, 0                  ; 500 Hz y 700 Hz: intento aceptado
+sndVictoria     DW 2281, 3, 1811, 3, 1522, 3, 1140, 6, 0   ; do-mi-sol-do agudo, sube
+sndDerrota      DW 3044, 4, 3616, 4, 4554, 4, 6088, 8, 0   ; sol-mi-do-sol grave, baja
+
+; --- Extra: fundido de paleta entre pantallas ---
+brillo          DB 16           ; nivel actual de la paleta: 0 = negro, 16 = original
+fundidoPend     DB 0            ; 1 = la pantalla recien dibujada aparece con fundido

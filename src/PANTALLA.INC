@@ -1,5 +1,6 @@
+
 ;=====================================================================
-; PANTALLAS.INC - Presentacion, menu, dificultad, instrucciones,
+; PANTALLA.INC - Presentacion, menu, dificultad, instrucciones,
 ; creditos y pantalla provisional de partida (Fase 5, RF/Pantallas A-D,G)
 ;
 ; Todas siguen la distribucion del enunciado: encabezado (0,0,320x20),
@@ -8,7 +9,7 @@
 ;=====================================================================
 
 ;---------------------------------------------------------------------
-; PintarPantalla
+; PintarPantalla  (apaga la pantalla anterior con un fundido; ver FADE.INC)
 ;   Recibe:    SI = texto del encabezado, DI = texto de la barra de estado
 ;   Devuelve:  fondo, encabezado y barra de estado dibujados
 ;   Destruye:  nada
@@ -19,6 +20,8 @@ PintarPantalla PROC
         push dx
         push si
 
+        call FundidoSalida      ; la pantalla anterior se apaga...
+        mov  fundidoPend, 1     ; ...y la nueva aparece en la primera lectura de tecla
         mov  al, C_FONDO
         call LimpiarPantalla
         RELLENAR_RECT C_PANEL, ENC_X, ENC_Y, ENC_W, ENC_H
@@ -181,62 +184,81 @@ PantallaPresentacion PROC
         pop  ax
         ret
 PantallaPresentacion ENDP
+
 ;=====================================================================
 ; B. MENU PRINCIPAL
 ;=====================================================================
 
 ;---------------------------------------------------------------------
-; DibujarOpcionesMenu
-;   Recibe:    opcionMenu (opcion resaltada), nivel
-;   Devuelve:  las 5 opciones y el nivel actual; la resaltada lleva
-;              barra azul y triangulos. Solo borra la zona de opciones.
+; DibujarOpcion
+;   Recibe:    AL = opcion (0..4), opcionMenu (la resaltada)
+;   Devuelve:  solo ESA fila del menu: barra (azul si esta resaltada,
+;              fondo si no), su texto y, si esta resaltada, los triangulos
 ;   Destruye:  nada
 ;---------------------------------------------------------------------
-DibujarOpcionesMenu PROC
+DibujarOpcion PROC
         push ax
         push bx
         push dx
         push si
         push di
 
-        RELLENAR_RECT C_FONDO, 0, 24, 320, 162
-        xor  di, di             ; DI = opcion que se dibuja (0..4)
-doItem:
-        mov  ax, di
+        xor  ah, ah
+        mov  di, ax             ; DI = opcion
         mov  bl, 26
         mul  bl                 ; AX = i * 26
         add  ax, 28
         mov  bx, ax             ; BX = y de la barra de esta opcion
-        mov  dl, C_TEXTO
+        mov  dl, C_FONDO        ; sin resaltar: la barra se borra con el fondo
         mov  al, opcionMenu
         xor  ah, ah
         cmp  ax, di
-        jne  doTexto
-        RELLENAR_RECT C_BORDE, 40, bx, 240, 22
-doTexto:
+        jne  doBarra
+        mov  dl, C_BORDE        ; resaltada: barra azul
+doBarra:
+        RELLENAR_RECT dx, 40, bx, 240, 22
         mov  si, di
         shl  si, 1
         mov  si, opcionesMenu[si]
         add  bx, 3              ; el texto de 16 px queda centrado en la barra
+        mov  dl, C_TEXTO
         mov  dh, 2
         call CentrarTexto
         mov  al, opcionMenu
         xor  ah, ah
         cmp  ax, di
-        jne  doSiguiente
+        jne  doFin
         TEXTO tFlechaIzq, 48, bx, C_DORADO, 2
         TEXTO tFlechaDer, 264, bx, C_DORADO, 2
-doSiguiente:
-        inc  di
-        cmp  di, NUM_OPC_MENU
-        jb   doItem
-
-        call DibujarNivelActual
-        call DibujarModoPrueba
+doFin:
         pop  di
         pop  si
         pop  dx
         pop  bx
+        pop  ax
+        ret
+DibujarOpcion ENDP
+
+;---------------------------------------------------------------------
+; DibujarOpcionesMenu
+;   Recibe:    opcionMenu (opcion resaltada), nivel; la pantalla ya
+;              esta pintada con PintarPantalla
+;   Devuelve:  las 5 opciones, el nivel actual y el aviso de modo prueba
+;   Destruye:  nada
+;---------------------------------------------------------------------
+DibujarOpcionesMenu PROC
+        push ax
+        push cx
+        xor  cl, cl             ; CL = opcion que se dibuja (0..4)
+doItem:
+        mov  al, cl
+        call DibujarOpcion
+        inc  cl
+        cmp  cl, NUM_OPC_MENU
+        jb   doItem
+        call DibujarNivelActual
+        call DibujarModoPrueba
+        pop  cx
         pop  ax
         ret
 DibujarOpcionesMenu ENDP
@@ -274,13 +296,17 @@ pmLeer:
 pmMover:
         mov  dl, opcionMenu
         mov  dh, NUM_OPC_MENU
+        push dx                 ; DL = opcion que se apaga
         call MoverSeleccion
         mov  opcionMenu, dl
-        call DibujarOpcionesMenu
+        pop  ax                 ; AL = opcion anterior
+        call DibujarOpcion      ; solo se redibujan las 2 filas que cambian
+        mov  al, opcionMenu
+        call DibujarOpcion
         jmp  pmLeer
 pmPrueba:
         xor  modoPrueba, 1
-        call DibujarOpcionesMenu
+        call DibujarModoPrueba
         jmp  pmLeer
 pmElegida:
         mov  al, opcionMenu
@@ -294,23 +320,21 @@ PantallaMenu ENDP
 ; C. SELECCION DE DIFICULTAD
 ;=====================================================================
 
-;---------------------------------------------------------------------
-; DibujarNiveles
-;   Recibe:    selNivel (resaltado)
-;   Devuelve:  las 3 tarjetas de nivel con sus reglas; la resaltada
+; DibujarTarjeta
+;   Recibe:    AL = nivel (0..2), selNivel (el resaltado)
+;   Devuelve:  la tarjeta de ese nivel con sus reglas; la resaltada
 ;              tiene borde dorado
 ;   Destruye:  nada
 ;---------------------------------------------------------------------
-DibujarNiveles PROC
+DibujarTarjeta PROC
         push ax
         push bx
         push dx
         push si
         push di
 
-        xor  di, di             ; DI = nivel que se dibuja (0..2)
-dnTarjeta:
-        mov  ax, di
+        xor  ah, ah
+        mov  di, ax             ; DI = nivel que se dibuja (0..2)
         mov  bl, 52
         mul  bl
         add  ax, 26
@@ -319,9 +343,9 @@ dnTarjeta:
         mov  al, selNivel
         xor  ah, ah
         cmp  ax, di
-        jne  dnMarco
+        jne  dkMarco
         mov  dl, C_DORADO       ; el resaltado se ve por el borde dorado
-dnMarco:
+dkMarco:
         RELLENAR_RECT dx, 12, bx, 296, 46
         RELLENAR_RECT C_PANEL, 14, bx, 292, 44
         mov  si, di
@@ -346,14 +370,70 @@ dnMarco:
         mov  si, detalle2[si]
         mov  ax, 24
         call DibujarTexto
-        inc  di
-        cmp  di, 3
-        jb   dnTarjeta
 
         pop  di
         pop  si
         pop  dx
         pop  bx
+        pop  ax
+        ret
+DibujarTarjeta ENDP
+
+; DibujarBordeTarjeta
+;   Recibe:    AL = nivel (0..2), selNivel (el resaltado)
+;   Devuelve:  SOLO el borde de la tarjeta (dorado si esta resaltada, azul si
+;              no). El interior y el texto no se tocan, asi al mover la
+;              seleccion no hay ningun instante con la tarjeta en blanco.
+;   Destruye:  nada
+;---------------------------------------------------------------------
+DibujarBordeTarjeta PROC
+        push ax
+        push bx
+        push cx
+        push dx
+
+        xor  ah, ah
+        mov  cx, ax             ; CX = nivel de esta tarjeta
+        mov  bl, 52
+        mul  bl
+        add  ax, 26
+        mov  bx, ax             ; BX = y de la tarjeta
+        mov  dl, C_BORDE
+        mov  al, selNivel
+        xor  ah, ah
+        cmp  ax, cx
+        jne  dbPintar
+        mov  dl, C_DORADO       ; la resaltada lleva el borde dorado
+dbPintar:
+        RELLENAR_RECT dx, 12, bx, 2, 46      ; lado izquierdo
+        RELLENAR_RECT dx, 306, bx, 2, 46     ; lado derecho
+        add  bx, 44
+        RELLENAR_RECT dx, 12, bx, 296, 2     ; lado inferior
+
+        pop  dx
+        pop  cx
+        pop  bx
+        pop  ax
+        ret
+DibujarBordeTarjeta ENDP
+
+;---------------------------------------------------------------------
+; DibujarNiveles
+;   Recibe:    selNivel (resaltado)
+;   Devuelve:  las 3 tarjetas de nivel
+;   Destruye:  nada
+;---------------------------------------------------------------------
+DibujarNiveles PROC
+        push ax
+        push cx
+        xor  cl, cl             ; CL = nivel
+dnTarjeta:
+        mov  al, cl
+        call DibujarTarjeta
+        inc  cl
+        cmp  cl, 3
+        jb   dnTarjeta
+        pop  cx
         pop  ax
         ret
 DibujarNiveles ENDP
@@ -392,9 +472,13 @@ pdLeer:
 pdMover:
         mov  dl, selNivel
         mov  dh, 3
+        push dx                 ; DL = tarjeta que se apaga
         call MoverSeleccion
         mov  selNivel, dl
-        call DibujarNiveles
+        pop  ax                 ; AL = tarjeta anterior
+        call DibujarBordeTarjeta ; solo cambia el borde de las 2 tarjetas implicadas
+        mov  al, selNivel
+        call DibujarBordeTarjeta
         jmp  pdLeer
 pdGuardar:
         mov  al, selNivel
@@ -548,9 +632,9 @@ PantallaCreditos PROC
         call PintarPantalla
         CENTRAR tTitulo, 28, C_DORADO, 3
         CENTRAR tCred1, 60, C_TEXTO, 1
-        mov  ax, 140            ; 2 fichas de muestra centradas
+        mov  ax, 68             ; las 8 fichas centradas (8x16 + 7x8 = 184 px)
         mov  bx, 76
-        mov  cx, 2
+        mov  cx, 8
         mov  dx, 24
         call DibujarFilaFichas
         CENTRAR tCred3, 104, C_DORADO, 1
@@ -571,3 +655,6 @@ PantallaCreditos PROC
         pop  ax
         ret
 PantallaCreditos ENDP
+
+;=====================================================================
+; PARTIDA (provisional: el tablero llega en la Fase 6)

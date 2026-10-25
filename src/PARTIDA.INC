@@ -53,6 +53,8 @@ DibujarPantallaJuego PROC
         mov  dl, C_DORADO
         mov  dh, 1
         call DibujarTexto
+        xor  ax, ax
+        call DibujarCrono       ; "Tiempo 00:00" en el encabezado
 
         RELLENAR_RECT C_FILA,  TAB_X, TAB_Y, TAB_W, TAB_H
         RELLENAR_RECT C_FONDO, TAB_X+1, TAB_Y+1, TAB_W-2, TAB_H-2
@@ -83,7 +85,8 @@ DibujarPantallaJuego ENDP
 ;---------------------------------------------------------------------
 ; ActualizarAnimJuego
 ;   Recibe:    reloj del BIOS (ticsUlt) y cuadroAnim
-;   Devuelve:  alterna mascota y cursor cada TICS_ANIM tics (RG-05/06)
+;   Devuelve:  alterna mascota y cursor cada TICS_ANIM tics (RG-05/06);
+;              del intento solo redibuja la casilla activa (RG-08)
 ;   Destruye:  nada
 ;---------------------------------------------------------------------
 ActualizarAnimJuego PROC
@@ -92,17 +95,49 @@ ActualizarAnimJuego PROC
         call ActualizarMascota
         cmp  al, cuadroAnim
         je   aaFin              ; no cambio el cuadro: nada que redibujar
-        call DibujarIntentoActual
+        mov  al, posActiva
+        call DibujarCasilla     ; solo la casilla del cursor, no las demas
 aaFin:
         pop  ax
         ret
 ActualizarAnimJuego ENDP
 
 ;---------------------------------------------------------------------
+; SimboloRepetido
+;   Recibe:    AL = ID del simbolo, SI = cuantas posiciones del secreto
+;              ya estan escritas
+;   Devuelve:  AL = 1 si el nivel NO permite repetidos (repeticion = 0) y
+;              el simbolo ya esta en secreto[0..SI-1]; si no, AL = 0
+;   Destruye:  AX
+;---------------------------------------------------------------------
+SimboloRepetido PROC
+        push bx
+        cmp  repeticion, 0
+        jne  srNo               ; el nivel permite repetir: siempre sirve
+        xor  bx, bx
+srBuscar:
+        cmp  bx, si
+        jae  srNo               ; revisadas todas sin encontrarlo
+        cmp  al, secreto[bx]
+        je   srSi
+        inc  bx
+        jmp  srBuscar
+srSi:
+        mov  al, 1
+        jmp  srFin
+srNo:
+        xor  al, al
+srFin:
+        pop  bx
+        ret
+SimboloRepetido ENDP
+
+;---------------------------------------------------------------------
 ; PedirSecretoManual  (modo prueba, RF-12)
-;   Recibe:    numPos, numColores
+;   Recibe:    numPos, numColores, repeticion
 ;   Devuelve:  secreto[] escrito con las teclas 1..C; ESC deja el
 ;              secreto aleatorio. Las casillas se muestran ocultas.
+;              En Facil rechaza simbolos repetidos con un aviso.
 ;   Destruye:  nada
 ;---------------------------------------------------------------------
 PedirSecretoManual PROC
@@ -138,17 +173,34 @@ psLeer:
         je   psAleatorio
         cmp  al, ACC_SIMBOLO
         jne  psLeer             ; otra tecla: ignorar
-        mov  secreto[si], ah
+        mov  dl, ah             ; DL = ID elegido (AX se destruye abajo)
+        mov  al, dl
+        call SimboloRepetido    ; en Facil no se aceptan repetidos (RF-05)
+        or   al, al
+        jnz  psRepetido
+        mov  secreto[si], dl
         mov  ax, si
         mov  bl, 24
         mul  bl
         add  ax, cx
         RELLENAR_RECT C_ACENTO, ax, 100, 20, 20   ; casilla llena, simbolo oculto
+        push si
+        mov  si, OFFSET tBarraPrueba
+        mov  dl, C_TEXTO
+        call MostrarEstado      ; quita el aviso si lo habia
+        pop  si
         inc  si
         mov  ax, si
         cmp  al, numPos
         jb   psLeer
         jmp  pscFin
+psRepetido:
+        push si
+        mov  si, OFFSET tRepetido
+        mov  dl, C_DORADO
+        call MostrarEstado      ; aviso en la barra de estado
+        pop  si
+        jmp  psLeer             ; la posicion sigue vacia
 psAleatorio:
         call GenerarSecreto
 pscFin:
@@ -182,9 +234,12 @@ JugarPartida PROC
 jpPantalla:
         mov  msgVis, 0
         call DibujarPantallaJuego
+        call IniciarCrono       ; el tiempo cuenta desde que aparece el tablero
         call VaciarTeclado
 jpLeer:
         call ActualizarAnimJuego
+        call ActualizarCrono
+        call ActualizarSonido   ; pasa a la siguiente nota si vencio la actual
         call HayTecla
         jz   jpLeer
         call EsperarTecla
@@ -202,6 +257,8 @@ jpLeer:
         jmp  jpFin
 
 jpCambio:
+        mov  si, OFFSET sndCambio
+        call IniciarSonido
         call DibujarPaleta
         call DibujarIntentoActual
         cmp  msgVis, 0
@@ -213,6 +270,8 @@ jpCambio:
         jmp  jpLeer
 
 jpIncompleto:
+        mov  si, OFFSET sndError
+        call IniciarSonido
         mov  msgVis, 1
         mov  si, OFFSET tIncomp
         mov  dl, C_DORADO
@@ -233,15 +292,22 @@ jpConfirmar:
         call MostrarEstado
         pop  ax
         cmp  al, ESTADO_JUGANDO
-        je   jpLeer
-        ; la partida termino: dejar ver el tablero antes de la pantalla final
+        jne  jpTermino
+        mov  si, OFFSET sndConfirmar
+        call IniciarSonido
+        jmp  jpLeer
+jpTermino:
+        ; la partida termino: congelar el cronometro y dejar ver el tablero
+        call FinalizarCrono
         mov  si, OFFSET tFinJ
         mov  dl, C_DORADO
         call MostrarEstado
+        call DetenerSonido      ; EsperarTecla bloquea: no dejar una nota sonando
         call VaciarTeclado
         call EsperarTecla
         mov  al, estado         ; 1 victoria / 2 derrota
 jpFin:
+        call DetenerSonido      ; al salir (ESC o fin) el menu espera tecla sin atender el sonido
         pop  si
         pop  dx
         pop  cx
@@ -259,6 +325,7 @@ DibujarModoPrueba PROC
         push bx
         push dx
         push si
+        RELLENAR_RECT C_FONDO, 0, 160, 320, 8   ; borrar el aviso anterior
         cmp  modoPrueba, 0
         je   dmpFin
         CENTRAR tModoPrueba, 160, C_ROJO, 1
@@ -295,12 +362,12 @@ dsLoop:
         mul  bl
         add  ax, cx
         mov  dx, ax             ; DX = x de la ficha
-        RELLENAR_RECT C_CELDA, dx, 150, FICHA_LADO, FICHA_LADO
         mov  al, secreto[si]
         push cx
         mov  cx, dx
         mov  bx, 150
-        call DibujarFicha
+        mov  dl, C_CELDA
+        call DibujarFichaSobre
         pop  cx
         inc  si
         mov  al, numPos
@@ -384,6 +451,11 @@ pfAnim:
         mov  dl, C_FONDO
         call IniciarAnimacion
 
+        mov  ax, tiempoFinal    ; duracion de la partida (victoria o derrota)
+        mov  di, OFFSET tiempoFinBuf + 8
+        call FormatearTiempo
+        CENTRAR tiempoFinBuf, 112, C_TEXTO, 1
+
         cmp  cl, ESTADO_VICTORIA
         jne  pfTextoDerrota
         TEXTO tUsados, 84, 124, C_TEXTO, 1   ; 16 letras + espacio + numero = 152 px, centrado
@@ -399,9 +471,16 @@ pfTextoDerrota:
         CENTRAR tSecreto, 130, C_TEXTO, 1
         call DibujarSecretoFin
 pfLeer:
+        call DibujarTituloFin   ; la pantalla debe estar completa antes del fundido
         call VaciarTeclado
-        call DibujarTituloFin
+        mov  si, OFFSET sndVictoria     ; la melodia sube si ganaste...
+        cmp  estado, ESTADO_VICTORIA
+        je   pfSonar
+        mov  si, OFFSET sndDerrota      ; ...y baja si perdiste
+pfSonar:
+        call IniciarSonido
 pfEspera:
+        call ActualizarSonido
         mov  al, cuadroAnim
         call ActualizarMascota
         cmp  al, cuadroAnim
@@ -424,6 +503,7 @@ pfMenu:
 pfOtra:
         mov  al, 1
 pfFin:
+        call DetenerSonido
         pop  di
         pop  si
         pop  dx

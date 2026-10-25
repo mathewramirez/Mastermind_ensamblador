@@ -157,7 +157,11 @@ CargarPaleta ENDP
 ; Pila al entrar, despues de "push bp / mov bp, sp":
 ;   [bp+0] BP viejo   [bp+2] direccion de retorno   [bp+4] y ... [bp+12] sprite
 ;
-; Color 0 = transparente: ese byte NO se escribe, asi se ve el fondo.
+; Los pixeles con valor COLOR_TRANSP (CONST.INC) NO se escriben,
+; asi se ve el fondo detras del sprite. Excepcion: si la variable
+; fondoSprite vale 0..255, esos pixeles se pintan con ese color. Es el
+; mismo procedimiento (RG-02), pero permite reemplazar un cuadro de
+; animacion por otro en una sola pasada, sin borrar antes (sin parpadeo).
 ;---------------------------------------------------------------------
 DibujarSprite PROC
         push bp
@@ -168,7 +172,9 @@ DibujarSprite PROC
         push si
         push di
         push es
+        push bx
 
+        mov  bx, fondoSprite    ; BH = 0FFh -> transparente de verdad; BL = color de fondo
         mov  ax, VIDEO_SEG
         mov  es, ax
 
@@ -185,11 +191,16 @@ DibujarSprite PROC
 dsFila:
         mov  cx, [bp+10]        ; CX = columnas de esta fila
 dsColumna:
-        lodsb                          ; AL = siguiente pixel del sprite
-        cmp   al, COLOR_TRANSP             ; pone ZF=1 si AL==0, sin cambiar AL
-        je   dsTransparente
+        lodsb                   ; AL = siguiente pixel del sprite
+        cmp  al, COLOR_TRANSP   ; ZF=1 si el pixel es el color transparente
+        je   dsFondo
         mov  es:[di], al
-dsTransparente:
+        jmp  dsSiguiente
+dsFondo:
+        cmp  bh, 0FFh           ; sin fondo: dejar lo que ya hay en pantalla
+        je   dsSiguiente
+        mov  es:[di], bl        ; con fondo: pintar el pixel con ese color
+dsSiguiente:
         inc  di
         loop dsColumna
 
@@ -198,6 +209,7 @@ dsTransparente:
         dec  dx
         jnz  dsFila
 
+        pop  bx
         pop  es
         pop  di
         pop  si

@@ -10,8 +10,11 @@
 ;   Destruye:  AX (es el valor de retorno)
 ;
 ; INT 16h AH=00h BLOQUEA hasta que haya una tecla en el buffer.
+; Antes de esperar, si hay una pantalla nueva con fundido pendiente,
+; la hace aparecer (ver FADE.INC).
 ;---------------------------------------------------------------------
 EsperarTecla PROC
+        call AplicarFundidoPendiente    ; si hay pantalla nueva, que aparezca
         mov  ah, 00h
         int  16h
         ret
@@ -26,8 +29,11 @@ EsperarTecla ENDP
 ;
 ; INT 16h AH=01h NO bloquea. Sirve para animar mientras se espera:
 ; el programa sigue dibujando y solo lee la tecla cuando existe.
+; El fundido pendiente se aplica ANTES de la interrupcion para no
+; alterar el ZF que devuelve.
 ;---------------------------------------------------------------------
 HayTecla PROC
+        call AplicarFundidoPendiente    ; antes de INT 16h para no alterar ZF
         mov  ah, 01h
         int  16h
         ret

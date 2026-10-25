@@ -28,8 +28,8 @@ ObtenerTics ENDP
 ; DibujarMascota
 ;   Recibe:    cuadroAnim (0/1), animSpr0/animSpr1 (sprites de 32x32),
 ;              animX, animY, animFondo (color con el que se borra)
-;   Devuelve:  el cuadro actual en (animX, animY); borra antes SOLO su
-;              rectangulo de 32x32 (sin parpadeo, RG-08)
+;   Devuelve:  el cuadro actual en (animX, animY), pintado de una sola
+;              pasada sobre su rectangulo de 32x32 (sin parpadeo, RG-08)
 ;   Destruye:  nada
 ;---------------------------------------------------------------------
 DibujarMascota PROC
@@ -39,9 +39,9 @@ DibujarMascota PROC
         push dx
         push si
 
-        mov  al, animFondo
-        xor  ah, ah
-        RELLENAR_RECT ax, animX, animY, MASCOTA_ANCHO, MASCOTA_ALTO
+        mov  al, animFondo      ; los pixeles transparentes se pintan con el fondo:
+        xor  ah, ah             ; un cuadro reemplaza al otro en una sola pasada
+        mov  fondoSprite, ax
         mov  si, animSpr0
         cmp  cuadroAnim, 0
         je   dmDibujar
@@ -53,6 +53,7 @@ dmDibujar:
         push animX
         push animY
         call DibujarSprite
+        mov  fondoSprite, 0FFFFh ; volver al modo transparente normal
 
         pop  si
         pop  dx

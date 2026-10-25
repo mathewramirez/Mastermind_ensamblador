@@ -1,4 +1,3 @@
-
 ;=====================================================================
 ; MASTER.ASM - Mastermind "Simbolos de Costa Rica"
 ; EIF205 Arquitectura de Computadores - Proyecto II - II Ciclo 2026
@@ -70,6 +69,7 @@ noInstruc:
         jmp  menuPrincipal
 
 salir:
+        call DetenerSonido      ; dejar el altavoz en silencio al volver a DOS
         call RestaurarModoVideo ; volver al modo de texto de DOS
         mov  ax, 4C00h          ; AH=4Ch terminar programa, AL=00 sin error
         int  21h
@@ -80,6 +80,9 @@ salir:
         INCLUDE VIDEO.INC
         INCLUDE TEXTO.INC
         INCLUDE ANIM.INC
+        INCLUDE CRONO.INC
+        INCLUDE SONIDO.INC
+        INCLUDE FADE.INC
         INCLUDE TECLADO.INC
         INCLUDE ALEAT.INC
         INCLUDE JUEGO.INC

@@ -94,7 +94,10 @@ CargarFuente ENDP
 ;       push caracter [bp+12]   push x [bp+10]   push y [bp+8]
 ;       push color    [bp+6]    push escala [bp+4]   (1, 2 o 3)
 ;   Devuelve:  el caracter dibujado; solo se escriben los pixeles
-;              "encendidos" del glifo, el fondo no se toca.
+;              "encendidos" del glifo, el fondo no se toca. Excepcion: si
+;              fondoTexto vale 0..255, los pixeles apagados se pintan con ese
+;              color, asi un texto que cambia (el cronometro) se reemplaza
+;              en una sola pasada, sin borrar antes (RG-08).
 ;              Saca 10 bytes ("ret 10").
 ;   Destruye:  nada
 ;---------------------------------------------------------------------
@@ -141,6 +144,7 @@ dcLeer:
         mov  ax, VIDEO_SEG
         mov  es, ax
         mov  dl, [bp+6]         ; DL = color
+        mov  dh, BYTE PTR fondoTexto ; DH = color de fondo (solo si fondoTexto <> 0FFFFh)
         xor  si, si             ; SI = fila del glifo (0..7)
 
         ; ---- 3) cada bit encendido = un bloque escala x escala ----
@@ -162,6 +166,17 @@ dcPixel:
         pop  cx
         jmp  dcSiguiente
 dcApagado:
+        cmp  fondoTexto, 0FFFFh
+        je   dcSaltar           ; sin fondo: dejar lo que ya hay en pantalla
+        push cx
+        mov  cx, [bp+4]
+dcFondo:
+        mov  es:[di], dh        ; con fondo: pintar el pixel apagado
+        inc  di
+        loop dcFondo
+        pop  cx
+        jmp  dcSiguiente
+dcSaltar:
         add  di, [bp+4]         ; saltar 'escala' pixeles sin escribir
 dcSiguiente:
         shl  al, 1
@@ -269,12 +284,6 @@ ctListo:
         ret
 CentrarTexto ENDP
 
-
-
-
-
-
-
 ;---------------------------------------------------------------------
 ; DibujarNumero
 ;   Recibe:    AL = numero 0..99, CX = x, BX = y, DL = color, DH = escala
@@ -303,4 +312,5 @@ dnUnidad:
         pop  si
         pop  ax
         ret
+
 DibujarNumero ENDP

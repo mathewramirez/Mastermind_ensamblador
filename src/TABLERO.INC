@@ -94,6 +94,23 @@ DibujarFicha PROC
 DibujarFicha ENDP
 
 ;---------------------------------------------------------------------
+; DibujarFichaSobre
+;   Recibe:    AL = ID del simbolo, CX = x, BX = y, DL = color de fondo
+;   Devuelve:  la ficha con su fondo claro en UNA sola pasada (la ficha
+;              completa de 16x16 queda pintada, sin borrar antes)
+;   Destruye:  nada
+;---------------------------------------------------------------------
+DibujarFichaSobre PROC
+        push dx
+        xor  dh, dh
+        mov  fondoSprite, dx
+        call DibujarFicha
+        mov  fondoSprite, 0FFFFh
+        pop  dx
+        ret
+DibujarFichaSobre ENDP
+
+;---------------------------------------------------------------------
 ; DibujarFilaVacia
 ;   Recibe:    AL = numero de intento (0 = el primero)
 ;   Devuelve:  el numero del intento y sus casillas vacias
@@ -270,9 +287,9 @@ dhFicha:
         add  ax, 16
         mov  cx, ax
         mov  bx, filaY
-        RELLENAR_RECT C_CELDA, cx, bx, FICHA_LADO, FICHA_LADO
-        mov  al, dl
-        call DibujarFicha
+        mov  al, dl             ; AL = ID del simbolo
+        mov  dl, C_CELDA        ; fondo claro tras la ficha
+        call DibujarFichaSobre
         inc  si
         mov  al, numPos
         xor  ah, ah

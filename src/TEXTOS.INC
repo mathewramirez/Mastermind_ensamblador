@@ -121,3 +121,6 @@ tDerrota    DB 'DERROTA',0
 tUsados     DB 'Intentos usados:',0
 tSecreto    DB 'El secreto era:',0
 tBarraFin   DB 'ENTER jugar de nuevo   ESC men',0A3h,0
+
+; ---- Aviso del secreto manual en nivel Facil ----
+tRepetido   DB 'F',0A0h,'cil: no se permiten repetidos',0
