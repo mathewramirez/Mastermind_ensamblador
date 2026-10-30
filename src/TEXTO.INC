@@ -283,11 +283,12 @@ ctListo:
         pop  ax
         ret
 CentrarTexto ENDP
-
 ;---------------------------------------------------------------------
 ; DibujarNumero
 ;   Recibe:    AL = numero 0..99, CX = x, BX = y, DL = color, DH = escala
-;   Devuelve:  el numero dibujado (1 o 2 digitos, sin ceros a la izquierda)
+;   Devuelve:  el numero dibujado (1 o 2 digitos, sin ceros a la izquierda).
+;              Si tiene 1 digito agrega un espacio: con fondoTexto activo cubre
+;              el segundo digito de un numero anterior mas largo (10 -> 9).
 ;   Destruye:  nada
 ;---------------------------------------------------------------------
 DibujarNumero PROC
@@ -305,12 +306,17 @@ DibujarNumero PROC
 dnUnidad:
         add  ah, '0'
         mov  [si], ah
-        mov  BYTE PTR [si+1], 0 ; fin de la cadena
+        inc  si
+        cmp  si, OFFSET numBuf + 1
+        jne  dnCerrar           ; dos digitos: no falta nada
+        mov  BYTE PTR [si], ' ' ; un digito: espacio final. Con fondoTexto activo
+        inc  si                 ; borra el segundo digito del numero anterior
+dnCerrar:
+        mov  BYTE PTR [si], 0   ; fin de la cadena
         mov  si, OFFSET numBuf
         mov  ax, cx             ; DibujarTexto recibe la x en AX
         call DibujarTexto
         pop  si
         pop  ax
         ret
-
 DibujarNumero ENDP

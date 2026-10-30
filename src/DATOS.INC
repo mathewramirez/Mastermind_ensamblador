@@ -132,3 +132,8 @@ sndDerrota      DW 3044, 4, 3616, 4, 4554, 4, 6088, 8, 0   ; sol-mi-do-sol grave
 ; --- Extra: fundido de paleta entre pantallas ---
 brillo          DB 16           ; nivel actual de la paleta: 0 = negro, 16 = original
 fundidoPend     DB 0            ; 1 = la pantalla recien dibujada aparece con fundido
+; --- Casilla del intento armada en memoria (ver DibujarCasilla) ---
+casBuf          DB CASILLA_LADO * CASILLA_LADO DUP(0)
+
+; --- Barra de estado armada en memoria (ver MostrarEstado) ---
+estBuf          DB 41 DUP(0)    ; 40 columnas + el 0 final

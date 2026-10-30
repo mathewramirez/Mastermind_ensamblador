@@ -10,16 +10,62 @@
 ;   Recibe:    SI = cadena (<= 40 caracteres), DL = color
 ;   Devuelve:  barra de estado (0,190,320x10) con el texto centrado
 ;   Destruye:  nada
+;   Anti-parpadeo (RG-08): el texto se rellena con espacios hasta las 40
+;   columnas (320 px) y se dibuja con fondo C_PANEL. Asi cada pixel de la
+;   barra se escribe una sola vez, sin borrar antes el rectangulo. Las filas
+;   190 y 199 de la barra no se tocan: ya son del color del panel.
 ;---------------------------------------------------------------------
 MostrarEstado PROC
         push ax
         push bx
+        push cx
         push dx
-        RELLENAR_RECT C_PANEL, EST_X, EST_Y, EST_W, EST_H
+        push si
+        push di
+        push es
+
+        push ds
+        pop  es                 ; ES = DS para STOSB / MOVSB
+        mov  di, OFFSET estBuf
+        mov  al, ' '
+        mov  cx, EST_COLUMNAS
+        rep  stosb              ; 40 espacios
+        mov  BYTE PTR [di], 0   ; DI = fin del buffer: cerrar la cadena
+
+        mov  bx, si             ; medir la cadena de entrada
+        xor  cx, cx
+meLargo:
+        cmp  BYTE PTR [bx], 0
+        je   meCopiar
+        inc  bx
+        inc  cx
+        jmp  meLargo
+meCopiar:
+        cmp  cx, EST_COLUMNAS
+        jbe  meCabe
+        mov  cx, EST_COLUMNAS   ; si no cabe, se recorta
+meCabe:
+        mov  ax, EST_COLUMNAS
+        sub  ax, cx
+        shr  ax, 1              ; margen izquierdo para centrar
+        mov  di, OFFSET estBuf
+        add  di, ax
+        rep  movsb              ; texto en el centro del buffer
+
+        mov  ax, C_PANEL
+        mov  fondoTexto, ax     ; los pixeles apagados del glifo se pintan de panel
+        mov  si, OFFSET estBuf
+        xor  ax, ax             ; x = 0
         mov  bx, 191
         mov  dh, 1
-        call CentrarTexto
+        call DibujarTexto
+        mov  fondoTexto, 0FFFFh
+
+        pop  es
+        pop  di
+        pop  si
         pop  dx
+        pop  cx
         pop  bx
         pop  ax
         ret
@@ -382,7 +428,6 @@ dsLoop:
         pop  ax
         ret
 DibujarSecretoFin ENDP
-
 ;---------------------------------------------------------------------
 ; DibujarTituloFin
 ;   Recibe:    estado (victoria/derrota), cuadroAnim
@@ -394,7 +439,8 @@ DibujarTituloFin PROC
         push bx
         push dx
         push si
-        RELLENAR_RECT C_FONDO, 0, 78, 320, 28
+        ; Sin borrar antes: el texto se redibuja en el mismo sitio y solo cambia
+        ; de color, asi no hay un instante en blanco (PintarPantalla ya limpio).
         cmp  estado, ESTADO_VICTORIA
         jne  tfDerrota
         mov  dl, C_DORADO
@@ -416,7 +462,6 @@ tfDibujar:
         pop  bx
         ret
 DibujarTituloFin ENDP
-
 ;---------------------------------------------------------------------
 ; PantallaFin  (RF-11, RF-12)
 ;   Recibe:    AL = ESTADO_VICTORIA o ESTADO_DERROTA

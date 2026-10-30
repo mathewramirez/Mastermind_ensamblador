@@ -101,12 +101,7 @@ DibujarFicha ENDP
 ;   Destruye:  nada
 ;---------------------------------------------------------------------
 DibujarFichaSobre PROC
-        push dx
-        xor  dh, dh
-        mov  fondoSprite, dx
         call DibujarFicha
-        mov  fondoSprite, 0FFFFh
-        pop  dx
         ret
 DibujarFichaSobre ENDP
 

@@ -80,12 +80,55 @@ dpMarco:
 DibujarPaleta ENDP
 
 ;---------------------------------------------------------------------
+; ComponerSprite
+;   Recibe:    SI = sprite, BL = ancho, BH = alto,
+;              DI = posicion destino dentro de casBuf (filas de 20 bytes)
+;   Devuelve:  el sprite copiado en casBuf; los pixeles de indice 0
+;              (COLOR_TRANSP) NO se copian, asi se ve lo que ya habia debajo
+;   Destruye:  nada
+;---------------------------------------------------------------------
+ComponerSprite PROC
+        push ax
+        push cx
+        push dx
+        push si
+        push di
+        mov  dl, bh             ; DL = filas que faltan
+csFila:
+        mov  cl, bl
+        xor  ch, ch             ; CX = columnas de esta fila
+        push di
+csPixel:
+        lodsb
+        cmp  al, COLOR_TRANSP
+        je   csSalta            ; transparente: dejar el pixel que ya hay
+        mov  [di], al
+csSalta:
+        inc  di
+        loop csPixel
+        pop  di
+        add  di, CASILLA_LADO   ; bajar una fila dentro del buffer
+        dec  dl
+        jnz  csFila
+        pop  di
+        pop  si
+        pop  dx
+        pop  cx
+        pop  ax
+        ret
+ComponerSprite ENDP
+
+;---------------------------------------------------------------------
 ; DibujarCasilla
 ;   Recibe:    AL = casilla (0..N-1) del intento en construccion
 ;   Devuelve:  esa casilla redibujada; si es la activa lleva el cursor
-;              animado de 2 cuadros (RG-05). Cada pixel se escribe una
-;              sola vez en lo posible, asi no hay un instante "en blanco".
+;              animado de 2 cuadros (RG-05).
 ;   Destruye:  nada
+;   Anti-parpadeo (RG-08) con transparencia real: la casilla de 20x20 se
+;   arma primero en memoria (casBuf): fondo, cursor y ficha, con el
+;   indice 0 sin copiar. Despues se vuelca a la pantalla de una sola vez,
+;   asi cada pixel se escribe una unica vez y nunca se ve la casilla
+;   "a medias" aunque el cursor se redibuje cada cuadro.
 ;---------------------------------------------------------------------
 DibujarCasilla PROC
         push ax
@@ -93,44 +136,78 @@ DibujarCasilla PROC
         push cx
         push dx
         push si
+        push di
+        push es
 
         mov  dl, al             ; DL = casilla
         xor  dh, dh
-        mov  si, dx             ; SI = casilla (indice)
+        mov  si, dx
+        mov  dh, intento[si]    ; DH = ficha puesta (0 = vacia)
         mov  bl, 21             ; 20 px de casilla + 1 de separacion
         mul  bl
         add  ax, PAN_X + 4
-        mov  cx, ax             ; CX = x de la casilla
-        mov  bx, PAN_Y + 86     ; BX = y de la casilla
+        push ax                 ; x de la casilla
+        mov  ax, PAN_Y + 86
+        push ax                 ; y de la casilla
 
+        ; 1) fondo de la casilla en el buffer
+        push ds
+        pop  es
+        mov  di, OFFSET casBuf
+        mov  al, C_FILA
+        mov  cx, CASILLA_LADO * CASILLA_LADO
+        rep  stosb
+
+        ; 2) cursor animado, solo en la casilla activa
         cmp  dl, posActiva
-        jne  dcVacia
-        mov  fondoSprite, C_FILA ; el cursor tapa toda la casilla de 20x20
+        jne  dcSinCursor
         mov  si, OFFSET CURSOR_0
         cmp  cuadroAnim, 0
         je   dcCursor
         mov  si, OFFSET CURSOR_1
 dcCursor:
-        push si
-        push CURSOR_ANCHO
-        push CURSOR_ALTO
-        push cx
-        push bx
-        call DibujarSprite
-        mov  fondoSprite, 0FFFFh
-        mov  si, dx             ; recuperar el indice de la casilla
-        jmp  dcFicha
-dcVacia:
-        RELLENAR_RECT C_FILA, cx, bx, 20, 20
-dcFicha:
-        mov  al, intento[si]
-        or   al, al
-        jz   dcFin              ; casilla vacia: no hay ficha
-        add  cx, 2
-        add  bx, 2
-        mov  dl, C_CELDA
-        call DibujarFichaSobre
-dcFin:
+        mov  bl, CURSOR_ANCHO
+        mov  bh, CURSOR_ALTO
+        mov  di, OFFSET casBuf
+        call ComponerSprite
+dcSinCursor:
+
+        ; 3) ficha encima del cursor, centrada (margen de 2 px)
+        or   dh, dh
+        jz   dcVolcar
+        mov  al, dh
+        xor  ah, ah
+        dec  ax
+        shl  ax, 1
+        mov  si, ax
+        mov  si, tablaFichas[si]
+        mov  bl, FICHA_LADO
+        mov  bh, FICHA_LADO
+        mov  di, OFFSET casBuf + 2 * CASILLA_LADO + 2
+        call ComponerSprite
+
+        ; 4) volcar el buffer a la pantalla en una sola pasada
+dcVolcar:
+        mov  ax, VIDEO_SEG
+        mov  es, ax
+        pop  bx                 ; BX = y
+        pop  cx                 ; CX = x
+        mov  di, bx
+        shl  di, 8
+        shl  bx, 6
+        add  di, bx
+        add  di, cx             ; DI = y*320 + x
+        mov  si, OFFSET casBuf
+        mov  dl, CASILLA_LADO   ; filas
+dcVolFila:
+        mov  cx, CASILLA_LADO
+        rep  movsb
+        add  di, ANCHO_PANT - CASILLA_LADO
+        dec  dl
+        jnz  dcVolFila
+
+        pop  es
+        pop  di
         pop  si
         pop  dx
         pop  cx
@@ -173,7 +250,10 @@ DibujarContadores PROC
         push dx
         push si
 
-        RELLENAR_RECT C_PANEL, PAN_X+4, 134, 104, 22
+        ; Sin borrar antes (RG-08): los textos y numeros se dibujan con fondo
+        ; C_PANEL, asi cada pixel se escribe una sola vez y no hay instante en blanco.
+        mov  ax, C_PANEL
+        mov  fondoTexto, ax
         TEXTO tIntento, 208, 134, C_TEXTO, 1
         TEXTO tQuedan,  208, 146, C_TEXTO, 1
         TEXTO tBarraNum, 284, 134, C_TEXTO, 1
@@ -196,6 +276,7 @@ dcMostrar:
         mov  cx, 268
         mov  bx, 146
         call DibujarNumero
+        mov  fondoTexto, 0FFFFh ; volver al texto sin fondo
 
         pop  si
         pop  dx

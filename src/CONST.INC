@@ -93,3 +93,5 @@ NUM_OPC_MENU    EQU 5
 ; --- Fase 6: colores de la paleta reutilizados y geometria de la partida ---
 C_CELDA         EQU 50          ; arena (de spr_mascota): fondo claro tras cada ficha
 C_ROJO          EQU 33          ; rojo vivo (de spr_derrota): titulo de derrota
+CASILLA_LADO    EQU 20          ; casilla del intento en el panel: 20x20 px
+EST_COLUMNAS    EQU 40          ; caracteres que caben en la barra de estado (320 px / 8)
