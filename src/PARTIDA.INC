@@ -1,20 +1,15 @@
 
-;=====================================================================
 ; PARTIDA.INC - Partida grafica completa (Fase 6) y pantalla final
 ; Une el teclado (ENTRADA/TECLADO), la logica (CICLO/JUEGO) y el dibujo
 ; (TABLERO/PANEL). Tras cada tecla redibuja SOLO lo que cambio (RG-08).
-;=====================================================================
 
-;---------------------------------------------------------------------
 ; MostrarEstado
 ;   Recibe:    SI = cadena (<= 40 caracteres), DL = color
 ;   Devuelve:  barra de estado (0,190,320x10) con el texto centrado
 ;   Destruye:  nada
 ;   Anti-parpadeo (RG-08): el texto se rellena con espacios hasta las 40
 ;   columnas (320 px) y se dibuja con fondo C_PANEL. Asi cada pixel de la
-;   barra se escribe una sola vez, sin borrar antes el rectangulo. Las filas
-;   190 y 199 de la barra no se tocan: ya son del color del panel.
-;---------------------------------------------------------------------
+
 MostrarEstado PROC
         push ax
         push bx
@@ -71,13 +66,11 @@ meCabe:
         ret
 MostrarEstado ENDP
 
-;---------------------------------------------------------------------
 ; DibujarPantallaJuego
 ;   Recibe:    nivel, estado de la partida ya iniciada
 ;   Devuelve:  encabezado, barra de ayuda, marcos del tablero y del
 ;              panel y todo su contenido; arranca la mascota del panel
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarPantallaJuego PROC
         push ax
         push bx
@@ -88,7 +81,17 @@ DibujarPantallaJuego PROC
         mov  si, OFFSET tVacio
         mov  di, OFFSET tAyudaJ
         call PintarPantalla
+        cmp  modo2j, 0
+        jne  dpjTurno
         TEXTO tTitulo, 8, 6, C_DORADO, 1
+        jmp  dpjNivel
+dpjTurno:
+        mov  al, 3
+        sub  al, jugCreador     ; juega el jugador que NO escribio el secreto
+        add  al, '0'
+        mov  tTurnoJ + 8, al    ; "TURNO: J1" o "TURNO: J2" en el encabezado
+        TEXTO tTurnoJ, 8, 6, C_DORADO, 1
+dpjNivel:
         TEXTO tNivelH, 200, 6, C_TEXTO, 1
         mov  bl, nivel
         xor  bh, bh
@@ -107,7 +110,17 @@ DibujarPantallaJuego PROC
         RELLENAR_RECT C_BORDE, PAN_X, PAN_Y, PAN_W, PAN_H
         RELLENAR_RECT C_PANEL, PAN_X+1, PAN_Y+1, PAN_W-2, PAN_H-2
         TEXTO tPaletaL, 236, 25, C_DORADO, 1
+        cmp  modo2j, 0
+        jne  dpjDos
         TEXTO tIntentoL, 228, 96, C_DORADO, 1
+        jmp  dpjSigue
+dpjDos:
+        mov  al, 3
+        sub  al, jugCreador     ; adivina el jugador que NO escribio el secreto
+        add  al, '0'
+        mov  tJugadorL + 8, al  ; "JUGADOR 1" o "JUGADOR 2" sobre sus casillas
+        TEXTO tJugadorL, 232, 96, C_DORADO, 1
+dpjSigue:
 
         call DibujarTablero
         call DibujarPaleta
@@ -128,13 +141,11 @@ DibujarPantallaJuego PROC
         ret
 DibujarPantallaJuego ENDP
 
-;---------------------------------------------------------------------
 ; ActualizarAnimJuego
 ;   Recibe:    reloj del BIOS (ticsUlt) y cuadroAnim
 ;   Devuelve:  alterna mascota y cursor cada TICS_ANIM tics (RG-05/06);
 ;              del intento solo redibuja la casilla activa (RG-08)
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 ActualizarAnimJuego PROC
         push ax
         mov  al, cuadroAnim
@@ -148,14 +159,12 @@ aaFin:
         ret
 ActualizarAnimJuego ENDP
 
-;---------------------------------------------------------------------
 ; SimboloRepetido
 ;   Recibe:    AL = ID del simbolo, SI = cuantas posiciones del secreto
 ;              ya estan escritas
 ;   Devuelve:  AL = 1 si el nivel NO permite repetidos (repeticion = 0) y
 ;              el simbolo ya esta en secreto[0..SI-1]; si no, AL = 0
 ;   Destruye:  AX
-;---------------------------------------------------------------------
 SimboloRepetido PROC
         push bx
         cmp  repeticion, 0
@@ -178,14 +187,12 @@ srFin:
         ret
 SimboloRepetido ENDP
 
-;---------------------------------------------------------------------
 ; PedirSecretoManual  (modo prueba, RF-12)
 ;   Recibe:    numPos, numColores, repeticion
 ;   Devuelve:  secreto[] escrito con las teclas 1..C; ESC deja el
 ;              secreto aleatorio. Las casillas se muestran ocultas.
 ;              En Facil rechaza simbolos repetidos con un aviso.
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 PedirSecretoManual PROC
         push ax
         push bx
@@ -259,14 +266,56 @@ pscFin:
         ret
 PedirSecretoManual ENDP
 
-;---------------------------------------------------------------------
+
+; ConfirmarSalida
+;   Recibe:    la pantalla de una partida (tablero, panel) ya dibujada
+;   Devuelve:  AL = 1 si el jugador confirma que quiere salir (S);
+;              AL = 0 si sigue jugando (N o ESC): en ese caso el tablero
+;              se redibuja y la partida continua como estaba
+;   Destruye:  AX
+;   Dibuja un recuadro sobre el tablero. El panel (con la mascota y el
+;   cronometro) no se toca; el tiempo sigue corriendo mientras se decide.
+ConfirmarSalida PROC
+        push bx
+        push dx
+        push si
+
+        RELLENAR_RECT C_DORADO, 12, 66, 180, 60
+        RELLENAR_RECT C_PANEL, 14, 68, 176, 56
+        TEXTO tSalirT1, 22, 76, C_DORADO, 1
+        TEXTO tSalirT2, 42, 92, C_TEXTO, 1
+        TEXTO tSalirT3, 22, 108, C_TEXTO, 1
+        call VaciarTeclado
+csLeer:
+        call ActualizarMascota
+        call ActualizarSonido
+        call HayTecla
+        jz   csLeer
+        call EsperarTecla
+        cmp  al, ASC_ESC
+        je   csSeguir
+        or   al, 20h            ; a minuscula
+        cmp  al, 's'
+        je   csSalir
+        cmp  al, 'n'
+        jne  csLeer             ; cualquier otra tecla: ignorar
+csSeguir:
+        RELLENAR_RECT C_FONDO, TAB_X+1, TAB_Y+1, TAB_W-2, TAB_H-2
+        call DibujarTablero     ; quitar el recuadro: el tablero vuelve a su sitio
+        xor  al, al
+        jmp  csFin
+csSalir:
+        mov  al, 1
+csFin:
+        pop  si
+        pop  dx
+        pop  bx
+        ret
+ConfirmarSalida ENDP
 ; JugarPartida
-;   Recibe:    partida iniciada con IniciarPartida
+;   Recibe:    partida iniciada con IniciarPartida (nivel, modoPrueba, modo2j)
 ;   Devuelve:  AL = 0 abandono (ESC), 1 victoria, 2 derrota
 ;   Destruye:  AX
-;   Ciclo: animar -> leer tecla -> ProcesarAccion -> dibujar solo el
-;   cambio. ENTER con casillas vacias avisa y NO consume turno (RF-07).
-;---------------------------------------------------------------------
 JugarPartida PROC
         push bx
         push cx
@@ -275,7 +324,10 @@ JugarPartida PROC
 
         call CargarGeometria
         cmp  modoPrueba, 0
+        jne  jpSecreto
+        cmp  modo2j, 0
         je   jpPantalla
+        jpSecreto:
         call PedirSecretoManual
 jpPantalla:
         mov  msgVis, 0
@@ -297,8 +349,11 @@ jpLeer:
         je   jpIncompleto
         cmp  al, RES_CONFIRMAR
         je   jpConfirmar
-        cmp  al, RES_SALIR
+               cmp  al, RES_SALIR
         jne  jpLeer             ; RES_NADA: tecla invalida
+        call ConfirmarSalida    ; AL = 1 si de verdad quiere salir
+        or   al, al
+        jz   jpLeer             ; no: la partida sigue
         xor  al, al             ; abandono
         jmp  jpFin
 
@@ -361,20 +416,18 @@ jpFin:
         ret
 JugarPartida ENDP
 
-;---------------------------------------------------------------------
 ; DibujarModoPrueba
 ;   Recibe:    modoPrueba
-;   Devuelve:  "[MODO PRUEBA]" bajo el menu si esta activo
+;   Devuelve:  "[MODO PRUEBA]" bajo el menu (y = 168) si esta activo
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarModoPrueba PROC
         push bx
         push dx
         push si
-        RELLENAR_RECT C_FONDO, 0, 160, 320, 8   ; borrar el aviso anterior
+        RELLENAR_RECT C_FONDO, 0, 168, 320, 8   ; borrar el aviso anterior
         cmp  modoPrueba, 0
         je   dmpFin
-        CENTRAR tModoPrueba, 160, C_ROJO, 1
+        CENTRAR tModoPrueba, 168, C_ROJO, 1
 dmpFin:
         pop  si
         pop  dx
@@ -382,12 +435,10 @@ dmpFin:
         ret
 DibujarModoPrueba ENDP
 
-;---------------------------------------------------------------------
 ; DibujarSecretoFin
 ;   Recibe:    secreto[], numPos
 ;   Devuelve:  las fichas del secreto centradas en y = 150
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarSecretoFin PROC
         push ax
         push bx
@@ -428,13 +479,11 @@ dsLoop:
         pop  ax
         ret
 DibujarSecretoFin ENDP
-;---------------------------------------------------------------------
 ; DibujarTituloFin
 ;   Recibe:    estado (victoria/derrota), cuadroAnim
 ;   Devuelve:  "VICTORIA" (alterna dorado/blanco con la animacion) o
 ;              "DERROTA" (rojo) centrado en y = 80, escala 3
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarTituloFin PROC
         push bx
         push dx
@@ -462,14 +511,12 @@ tfDibujar:
         pop  bx
         ret
 DibujarTituloFin ENDP
-;---------------------------------------------------------------------
 ; PantallaFin  (RF-11, RF-12)
 ;   Recibe:    AL = ESTADO_VICTORIA o ESTADO_DERROTA
 ;   Devuelve:  AL = 1 jugar otra vez (ENTER), 0 volver al menu (ESC/M)
 ;   Destruye:  AX
 ;   Victoria: sprite feliz y titulo que alterna dorado/blanco.
 ;   Derrota: sprite triste, titulo rojo y el secreto revelado.
-;---------------------------------------------------------------------
 PantallaFin PROC
         push bx
         push cx

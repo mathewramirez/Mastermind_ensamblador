@@ -1,16 +1,12 @@
 
-;=====================================================================
 ; PANEL.INC - Panel lateral (zona C): paleta de fichas, intento en
 ; construccion, contadores y estado. Solo se redibuja lo que cambia.
-;=====================================================================
 
-;---------------------------------------------------------------------
 ; DibujarPaleta
 ;   Recibe:    numColores, colorSel
 ;   Devuelve:  las C fichas disponibles en 2 filas de 4, cada una con
 ;              su numero de tecla; la seleccionada lleva marco dorado
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarPaleta PROC
         push ax
         push bx
@@ -79,14 +75,12 @@ dpMarco:
         ret
 DibujarPaleta ENDP
 
-;---------------------------------------------------------------------
 ; ComponerSprite
 ;   Recibe:    SI = sprite, BL = ancho, BH = alto,
 ;              DI = posicion destino dentro de casBuf (filas de 20 bytes)
 ;   Devuelve:  el sprite copiado en casBuf; los pixeles de indice 0
 ;              (COLOR_TRANSP) NO se copian, asi se ve lo que ya habia debajo
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 ComponerSprite PROC
         push ax
         push cx
@@ -118,18 +112,12 @@ csSalta:
         ret
 ComponerSprite ENDP
 
-;---------------------------------------------------------------------
 ; DibujarCasilla
 ;   Recibe:    AL = casilla (0..N-1) del intento en construccion
 ;   Devuelve:  esa casilla redibujada; si es la activa lleva el cursor
 ;              animado de 2 cuadros (RG-05).
 ;   Destruye:  nada
-;   Anti-parpadeo (RG-08) con transparencia real: la casilla de 20x20 se
-;   arma primero en memoria (casBuf): fondo, cursor y ficha, con el
-;   indice 0 sin copiar. Despues se vuelca a la pantalla de una sola vez,
-;   asi cada pixel se escribe una unica vez y nunca se ve la casilla
-;   "a medias" aunque el cursor se redibuje cada cuadro.
-;---------------------------------------------------------------------
+;   Anti-parpadeo (RG-08) con transparencia real
 DibujarCasilla PROC
         push ax
         push bx
@@ -150,7 +138,7 @@ DibujarCasilla PROC
         mov  ax, PAN_Y + 86
         push ax                 ; y de la casilla
 
-        ; 1) fondo de la casilla en el buffer
+        ; fondo de la casilla en el buffer
         push ds
         pop  es
         mov  di, OFFSET casBuf
@@ -158,7 +146,7 @@ DibujarCasilla PROC
         mov  cx, CASILLA_LADO * CASILLA_LADO
         rep  stosb
 
-        ; 2) cursor animado, solo en la casilla activa
+        ;cursor animado, solo en la casilla activa
         cmp  dl, posActiva
         jne  dcSinCursor
         mov  si, OFFSET CURSOR_0
@@ -172,7 +160,7 @@ dcCursor:
         call ComponerSprite
 dcSinCursor:
 
-        ; 3) ficha encima del cursor, centrada (margen de 2 px)
+        ; ficha encima del cursor, centrada (margen de 2 px)
         or   dh, dh
         jz   dcVolcar
         mov  al, dh
@@ -186,7 +174,7 @@ dcSinCursor:
         mov  di, OFFSET casBuf + 2 * CASILLA_LADO + 2
         call ComponerSprite
 
-        ; 4) volcar el buffer a la pantalla en una sola pasada
+        ; volcar el buffer a la pantalla en una sola pasada
 dcVolcar:
         mov  ax, VIDEO_SEG
         mov  es, ax
@@ -216,12 +204,10 @@ dcVolFila:
         ret
 DibujarCasilla ENDP
 
-;---------------------------------------------------------------------
 ; DibujarIntentoActual
 ;   Recibe:    intento[], posActiva, numPos, cuadroAnim
 ;   Devuelve:  las N casillas del intento en construccion
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarIntentoActual PROC
         push ax
         push cx
@@ -237,12 +223,10 @@ diCasilla:
         ret
 DibujarIntentoActual ENDP
 
-;---------------------------------------------------------------------
 ; DibujarContadores  (RF-10)
 ;   Recibe:    turno, maxIntentos
 ;   Devuelve:  "Intento k/M" y "Quedan r" actualizados en el panel
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarContadores PROC
         push ax
         push bx

@@ -1,11 +1,9 @@
-;=====================================================================
 ; CONST.INC - Constantes del proyecto
 ; EQU no ocupa memoria: el ensamblador sustituye el valor. Tenerlas
 ; todas aqui permite cambiar una zona, el color transparente o la
 ; velocidad de animacion editando UNA sola linea.
-;=====================================================================
 
-; --- Video ---
+;  Video
 VIDEO_SEG       EQU 0A000h      ; segmento de la memoria de video en modo 13h
 ANCHO_PANT      EQU 320
 ALTO_PANT       EQU 200
@@ -29,23 +27,23 @@ EST_Y           EQU 190
 EST_W           EQU 320
 EST_H           EQU 10
 
-; --- Tablero y fichas ---
+;  Tablero y fichas
 FICHA_LADO      EQU 16          ; las fichas miden 16x16
 FILA_ALTO       EQU 16          ; 10 filas de 16 px caben en los 168 px del tablero
 MAX_N           EQU 5           ; maximo de posiciones (nivel dificil)
 MAX_INTENTOS    EQU 12          ; maximo de intentos (nivel facil)
 
-; --- Niveles (indice en tablaNiveles) ---
+;  Niveles (indice en tablaNiveles) 
 NIVEL_FACIL     EQU 0
 NIVEL_NORMAL    EQU 1
 NIVEL_DIFICIL   EQU 2
 
-; --- Estado de la partida ---
+; Estado de la partida
 ESTADO_JUGANDO  EQU 0
 ESTADO_VICTORIA EQU 1
 ESTADO_DERROTA  EQU 2
 
-; --- Teclado: INT 16h AH=00h devuelve AH=scan code, AL=ASCII ---
+; Teclado: INT 16h AH=00h devuelve AH=scan code, AL=ASCII 
 ; Las flechas son teclas extendidas: AL=0 (o E0h en algunos teclados)
 ; y lo que identifica la tecla es el scan code en AH.
 SCAN_ARRIBA     EQU 48h
@@ -56,7 +54,7 @@ ASC_ENTER       EQU 0Dh
 ASC_RETROCESO   EQU 08h
 ASC_ESC         EQU 1Bh
 
-; --- Acciones: lo que significa una tecla para el juego (TraducirTecla) ---
+; Acciones: lo que significa una tecla para el juego (TraducirTecla)
 ACC_NINGUNA     EQU 0           ; tecla invalida: se ignora
 ACC_IZQ         EQU 1           ; posicion activa a la izquierda
 ACC_DER         EQU 2           ; posicion activa a la derecha
@@ -67,31 +65,49 @@ ACC_BORRAR      EQU 6           ; BACKSPACE
 ACC_CONFIRMAR   EQU 7           ; ENTER
 ACC_SALIR       EQU 8           ; ESC
 
-; --- Resultado de aplicar una accion al intento (ProcesarAccion) ---
+; Resultado de aplicar una accion al intento (ProcesarAccion)
 RES_NADA        EQU 0           ; no cambio nada
 RES_CAMBIO      EQU 1           ; cambio el intento o la posicion: redibujar
 RES_INCOMPLETO  EQU 2           ; ENTER con casillas vacias: avisar, NO gastar turno
 RES_CONFIRMAR   EQU 3           ; ENTER con el intento completo: evaluar
 RES_SALIR       EQU 4           ; ESC
 
-; --- Animacion: se mide en tics del BIOS (18.2 por segundo) ---
+;  Animacion: se mide en tics del BIOS (18.2 por segundo) 
 TICS_ANIM       EQU 4           ; un cuadro cada ~0.22 s
 
-
-; --- Colores reutilizados de la paleta generada (ver doc/tabla_paleta.md) ---
+;  Colores reutilizados de la paleta generada (ver doc/tabla_paleta.md) 
 C_DORADO        EQU 37          ; amarillo de spr_exacto: titulos y seleccion
 
-; --- Opciones del menu principal (orden en que se dibujan) ---
+;  Opciones del menu principal (orden en que se dibujan) ---d
 OPC_JUGAR       EQU 0
 OPC_NIVEL       EQU 1
-OPC_INSTRUC     EQU 2
-OPC_CREDITOS    EQU 3
-OPC_SALIR       EQU 4
-NUM_OPC_MENU    EQU 5
+OPC_JUGADORES   EQU 2           ; no abre pantalla: alterna 1 o 2 jugadores
+OPC_INVERSO     EQU 3           ; modo inverso: el programa adivina tu codigo
+OPC_PUNTAJES    EQU 4
+OPC_INSTRUC     EQU 5
+OPC_CREDITOS    EQU 6
+OPC_SALIR       EQU 7
+NUM_OPC_MENU    EQU 8
 
-
-; --- Fase 6: colores de la paleta reutilizados y geometria de la partida ---
+;  colores de la paleta reutilizados y geometria de la partida
 C_CELDA         EQU 50          ; arena (de spr_mascota): fondo claro tras cada ficha
 C_ROJO          EQU 33          ; rojo vivo (de spr_derrota): titulo de derrota
 CASILLA_LADO    EQU 20          ; casilla del intento en el panel: 20x20 px
 EST_COLUMNAS    EQU 40          ; caracteres que caben en la barra de estado (320 px / 8)
+
+; Extra: mejores puntajes (archivo MEJORES.DAT)
+; Un registro por puesto: 3 bytes de iniciales, 1 byte de intentos usados
+; (0 = registro vacio) y 1 palabra con los segundos. Hay PUNT_TOP puestos por
+; nivel, en el orden facil, normal, dificil. El archivo guarda una firma de
+; 2 bytes ('MC') y las tres tablas seguidas.
+PUNT_REC        EQU 6           ; bytes por registro
+PUNT_TOP        EQU 5           ; puestos por nivel
+PUNT_NIVEL      EQU PUNT_REC * PUNT_TOP     ; 30 bytes por nivel
+PUNT_CAT        EQU PUNT_NIVEL * 3          ; 90 bytes por categoria (3 niveles)
+PUNT_CATS       EQU 3                       ; 0 = 1 jugador, 1 = 2 jugadores, 2 = computadora
+PUNT_TOTAL      EQU PUNT_CAT * PUNT_CATS    ; 270 bytes en total
+PUNT_ARCH       EQU 2 + PUNT_TOTAL          ; 272 bytes: firma + tablas
+PUNT_ARCH_V1    EQU 2 + PUNT_CAT            ; 92 bytes: archivo de la version anterior (solo 1 jugador)
+NOM_X           EQU 124         ; pantalla de iniciales: x de la primera casilla
+NOM_Y           EQU 114         ; y de las casillas
+NUM_PAG_INSTR   EQU 5          ; paginas de la pantalla de instrucciones

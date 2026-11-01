@@ -1,18 +1,14 @@
 
-;=====================================================================
 ; TABLERO.INC - Tablero de intentos (zona B, RF-09): una fila por
 ; intento con su numero, sus fichas y la retroalimentacion.
 ; Cada fila: [numero 16 px][fichas N*paso][iconos exacto/parcial]
 ; Los iconos se reparten en 2 lineas de 8 px (cabe en las filas de 16).
-;=====================================================================
 
-;---------------------------------------------------------------------
 ; CargarGeometria
 ;   Recibe:    nivel
 ;   Devuelve:  geomFilas, geomAlto, geomAncho, geomPaso y geomFb
 ;              copiados de tablaGeom
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 CargarGeometria PROC
         push ax
         push bx
@@ -35,13 +31,11 @@ CargarGeometria PROC
         ret
 CargarGeometria ENDP
 
-;---------------------------------------------------------------------
 ; ObtenerPosFila
 ;   Recibe:    AL = numero de intento (0 = el primero)
 ;   Devuelve:  filaX, filaY = esquina de las fichas de esa fila.
 ;              Intento t -> columna t / filas, fila t mod filas.
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 ObtenerPosFila PROC
         push ax
         push bx
@@ -69,12 +63,10 @@ ObtenerPosFila PROC
         ret
 ObtenerPosFila ENDP
 
-;---------------------------------------------------------------------
 ; DibujarFicha
 ;   Recibe:    AL = ID del simbolo (1..8), CX = x, BX = y
 ;   Devuelve:  el sprite de esa ficha (16x16) en (x, y)
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarFicha PROC
         push ax
         push si
@@ -93,24 +85,20 @@ DibujarFicha PROC
         ret
 DibujarFicha ENDP
 
-;---------------------------------------------------------------------
 ; DibujarFichaSobre
 ;   Recibe:    AL = ID del simbolo, CX = x, BX = y, DL = color de fondo
 ;   Devuelve:  la ficha con su fondo claro en UNA sola pasada (la ficha
 ;              completa de 16x16 queda pintada, sin borrar antes)
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarFichaSobre PROC
         call DibujarFicha
         ret
 DibujarFichaSobre ENDP
 
-;---------------------------------------------------------------------
 ; DibujarFilaVacia
 ;   Recibe:    AL = numero de intento (0 = el primero)
 ;   Devuelve:  el numero del intento y sus casillas vacias
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarFilaVacia PROC
         push ax
         push bx
@@ -155,15 +143,62 @@ dvCasilla:
         ret
 DibujarFilaVacia ENDP
 
-;---------------------------------------------------------------------
+; DibujarIconoGrande
+;   Recibe:    AL = posicion del icono dentro de la retroalimentacion
+;              (0 es el primero), DL = 0 exacto / 1 parcial;
+;              filaX, filaY de la fila actual
+;   Devuelve:  el icono ampliado a 16x16, en UNA sola fila horizontal a la
+;              derecha de las fichas: primero los exactos y luego los
+;              parciales, de izquierda a derecha (Normal y Dificil)
+;   Destruye:  nada
+DibujarIconoGrande PROC
+        push ax
+        push bx
+        push dx
+        push si
+
+        xor  ah, ah
+        mul  geomFb             ; AX = posicion * paso de iconos
+        mov  si, ax
+        mov  al, numPos
+        mul  geomPaso           ; AX = ancho ocupado por las fichas
+        add  si, ax
+        add  si, filaX
+        add  si, 17             ; SI = x del icono (despues del numero y fichas)
+        mov  bx, OFFSET EXACTO_0
+        or   dl, dl
+        jz   igDibujar
+        mov  bx, OFFSET PARCIAL_0
+igDibujar:
+        push bx
+        push EXACTO_ANCHO
+        push EXACTO_ALTO
+        push si
+        push filaY              ; la fila mide 16 px: el icono 2x cabe justo
+        call DibujarSpriteX2
+
+        pop  si
+        pop  dx
+        pop  bx
+        pop  ax
+        ret
+DibujarIconoGrande ENDP
+
 ; DibujarIconoRetro
 ;   Recibe:    AL = posicion del icono dentro de la retroalimentacion
 ;              (0 es el primero), DL = 0 exacto / 1 parcial;
 ;              filaX, filaY de la fila actual
-;   Devuelve:  el icono de 8x8 dibujado a la derecha de las fichas
+;   Devuelve:  Normal y Dificil: icono grande en una fila horizontal
+;              (DibujarIconoGrande). Facil: icono de 8x8 en 2 lineas,
+;              porque su fila es angosta.
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarIconoRetro PROC
+        cmp  nivel, NIVEL_FACIL
+        je   diChico
+        call DibujarIconoGrande
+        ret
+diChico:
+        push ax
         push ax
         push bx
         push cx
@@ -206,13 +241,11 @@ diDibujar:
         ret
 DibujarIconoRetro ENDP
 
-;---------------------------------------------------------------------
 ; DibujarRetro
 ;   Recibe:    AL = numero de intento; filaX, filaY de su fila
 ;   Devuelve:  histExactos[t] iconos de exacto y luego histParciales[t]
 ;              iconos de parcial (RF-08, RF-09)
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarRetro PROC
         push ax
         push bx
@@ -251,12 +284,10 @@ drFin:
         ret
 DibujarRetro ENDP
 
-;---------------------------------------------------------------------
 ; DibujarFilaHistorial
 ;   Recibe:    AL = numero de un intento ya evaluado
 ;   Devuelve:  sus fichas (sobre fondo claro) y su retroalimentacion
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarFilaHistorial PROC
         push ax
         push bx
@@ -303,13 +334,11 @@ dhFicha:
         ret
 DibujarFilaHistorial ENDP
 
-;---------------------------------------------------------------------
 ; DibujarTablero
 ;   Recibe:    maxIntentos, turno, historial[]
 ;   Devuelve:  todas las filas: vacias las pendientes, completas las
 ;              ya jugadas (RF-09: todo el historial visible a la vez)
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarTablero PROC
         push ax
         push cx

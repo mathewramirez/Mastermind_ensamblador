@@ -1,19 +1,11 @@
-;=====================================================================
 ; TEXTO.INC - Rectangulos y texto en modo 13h (Fase 5)
-; El texto se dibuja pixel a pixel con la fuente de 8x8 que trae el
-; BIOS. Asi se puede poner en cualquier (x,y), con color de la paleta
-; propia y a escala 1, 2 o 3 (titulos grandes) sin depender del cursor
-; de texto de INT 10h.
-;=====================================================================
 
-;---------------------------------------------------------------------
 ; RellenarRect
 ;   Recibe por PILA (o con la macro RELLENAR_RECT):
 ;       push color  [bp+12]    push x [bp+10]    push y [bp+8]
 ;       push ancho  [bp+6]     push alto [bp+4]
 ;   Devuelve:  rectangulo de color solido. Saca 10 bytes ("ret 10").
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 RellenarRect PROC
         push bp
         mov  bp, sp
@@ -52,14 +44,12 @@ rrFin:
         ret  10
 RellenarRect ENDP
 
-;---------------------------------------------------------------------
 ; CargarFuente
 ;   Recibe:    nada
 ;   Devuelve:  fuenteBaja* y fuenteAlta* con la direccion de la fuente
 ;              de 8x8 del BIOS (INT 10h AX=1130h; BH=3 -> chars 0..127,
 ;              BH=4 -> chars 128..255). Llamar UNA vez tras entrar a 13h.
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 CargarFuente PROC
         push ax
         push bx
@@ -88,19 +78,14 @@ CargarFuente PROC
         ret
 CargarFuente ENDP
 
-;---------------------------------------------------------------------
 ; DibujarCaracter
 ;   Recibe por PILA:
 ;       push caracter [bp+12]   push x [bp+10]   push y [bp+8]
 ;       push color    [bp+6]    push escala [bp+4]   (1, 2 o 3)
 ;   Devuelve:  el caracter dibujado; solo se escriben los pixeles
-;              "encendidos" del glifo, el fondo no se toca. Excepcion: si
-;              fondoTexto vale 0..255, los pixeles apagados se pintan con ese
-;              color, asi un texto que cambia (el cronometro) se reemplaza
-;              en una sola pasada, sin borrar antes (RG-08).
+;           
 ;              Saca 10 bytes ("ret 10").
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarCaracter PROC
         push bp
         mov  bp, sp
@@ -112,7 +97,7 @@ DibujarCaracter PROC
         push di
         push es
 
-        ; ---- 1) copiar las 8 filas del glifo desde la ROM a glifo[] ----
+        ; copiar las 8 filas del glifo desde la ROM a glifo[]
         mov  ax, [bp+12]
         xor  ah, ah
         mov  si, fuenteBajaOff
@@ -134,7 +119,7 @@ dcLeer:
         inc  bx
         loop dcLeer
 
-        ; ---- 2) DI = y*320 + x ----
+        ; DI = y*320 + x ----
         mov  di, [bp+8]
         mov  ax, di
         shl  di, 8
@@ -147,7 +132,7 @@ dcLeer:
         mov  dh, BYTE PTR fondoTexto ; DH = color de fondo (solo si fondoTexto <> 0FFFFh)
         xor  si, si             ; SI = fila del glifo (0..7)
 
-        ; ---- 3) cada bit encendido = un bloque escala x escala ----
+        ; cada bit encendido = un bloque escala x escala ----
 dcFila:
         mov  bx, [bp+4]         ; BX = veces que se repite la fila (escala)
 dcRepetir:
@@ -200,13 +185,11 @@ dcSiguiente:
         ret  10
 DibujarCaracter ENDP
 
-;---------------------------------------------------------------------
 ; DibujarTexto
 ;   Recibe:    SI = cadena terminada en 0 (en DS), AX = x, BX = y,
 ;              DL = color, DH = escala (1..3)
 ;   Devuelve:  cadena dibujada de izquierda a derecha
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarTexto PROC
         push ax
         push bx
@@ -245,12 +228,10 @@ dtFin:
         ret
 DibujarTexto ENDP
 
-;---------------------------------------------------------------------
 ; CentrarTexto
 ;   Recibe:    SI = cadena terminada en 0, BX = y, DL = color, DH = escala
 ;   Devuelve:  cadena centrada horizontalmente en los 320 px
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 CentrarTexto PROC
         push ax
         push cx
@@ -283,14 +264,12 @@ ctListo:
         pop  ax
         ret
 CentrarTexto ENDP
-;---------------------------------------------------------------------
 ; DibujarNumero
 ;   Recibe:    AL = numero 0..99, CX = x, BX = y, DL = color, DH = escala
 ;   Devuelve:  el numero dibujado (1 o 2 digitos, sin ceros a la izquierda).
 ;              Si tiene 1 digito agrega un espacio: con fondoTexto activo cubre
 ;              el segundo digito de un numero anterior mas largo (10 -> 9).
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarNumero PROC
         push ax
         push si

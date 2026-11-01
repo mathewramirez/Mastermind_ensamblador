@@ -1,13 +1,9 @@
-;=====================================================================
 ; VIDEO.INC - Manejo del modo de video y dibujo basico
-;=====================================================================
 
-;---------------------------------------------------------------------
 ; GuardarModoVideo
 ;   Recibe:    nada
 ;   Devuelve:  modoOriginal = modo de video actual (INT 10h, AH=0Fh)
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 GuardarModoVideo PROC
         push ax
         push bx                 ; la funcion 0Fh devuelve la pagina activa en BH
@@ -19,12 +15,10 @@ GuardarModoVideo PROC
         ret
 GuardarModoVideo ENDP
 
-;---------------------------------------------------------------------
 ; EntrarModo13h
 ;   Recibe:    nada
 ;   Devuelve:  pantalla en modo 13h (320x200x256), limpia en negro
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 EntrarModo13h PROC
         push ax
         mov  ax, 0013h          ; AH=00h "fijar modo", AL=13h el modo grafico
@@ -33,12 +27,10 @@ EntrarModo13h PROC
         ret
 EntrarModo13h ENDP
 
-;---------------------------------------------------------------------
 ; RestaurarModoVideo
 ;   Recibe:    modoOriginal (guardado por GuardarModoVideo)
 ;   Devuelve:  la pantalla vuelve al modo con el que arranco DOS
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 RestaurarModoVideo PROC
         push ax
         mov  ah, 00h
@@ -48,7 +40,6 @@ RestaurarModoVideo PROC
         ret
 RestaurarModoVideo ENDP
 
-;---------------------------------------------------------------------
 ; PonerPixel
 ;   Recibe:    AX = x (0..319), BX = y (0..199), DL = indice de color
 ;   Devuelve:  nada
@@ -56,7 +47,6 @@ RestaurarModoVideo ENDP
 ;
 ; offset = y*320 + x. En vez de MUL (lento y que ensucia DX, justo
 ; donde viene el color) usamos: y*320 = y*256 + y*64 = (y<<8)+(y<<6)
-;---------------------------------------------------------------------
 PonerPixel PROC
         push cx
         push di
@@ -79,7 +69,6 @@ PonerPixel PROC
         ret
 PonerPixel ENDP
 
-;---------------------------------------------------------------------
 ; LimpiarPantalla
 ;   Recibe:    AL = indice de color de relleno
 ;   Devuelve:  los 64 000 pixeles con ese color
@@ -87,7 +76,6 @@ PonerPixel ENDP
 ;
 ; Escribe de a 2 pixeles por instruccion (STOSW guarda AX en ES:DI y
 ; suma 2 a DI). 64 000 bytes = 32 000 palabras. Por eso AH = AL.
-;---------------------------------------------------------------------
 LimpiarPantalla PROC
         push ax
         push cx
@@ -108,7 +96,6 @@ LimpiarPantalla PROC
         ret
 LimpiarPantalla ENDP
 
-;---------------------------------------------------------------------
 ; CargarPaleta  (RG-07)
 ;   Recibe:    tablaPaleta (R,G,B por entrada), PALETA_INICIO, PALETA_CANT
 ;   Devuelve:  colores PALETA_INICIO.. redefinidos en el DAC del VGA
@@ -117,7 +104,6 @@ LimpiarPantalla ENDP
 ; Protocolo del DAC: OUT 3C8h = primer indice a escribir; luego se
 ; mandan R,G,B por 3C9h y el VGA avanza SOLO al siguiente indice cada
 ; 3 bytes. Por eso basta un ciclo de PALETA_CANT*3 escrituras.
-;---------------------------------------------------------------------
 CargarPaleta PROC
         push ax
         push cx
@@ -142,27 +128,15 @@ cpSiguiente:
         ret
 CargarPaleta ENDP
 
-;---------------------------------------------------------------------
 ; DibujarSprite  (RG-02, RG-03)
 ;   Recibe por PILA (apilar en este orden, o usar la macro DIBUJAR_SPRITE):
-;       push OFFSET sprite      ; [bp+12] puntero a los bytes del sprite (en DS)
-;       push ancho              ; [bp+10]
-;       push alto               ; [bp+8]
-;       push x                  ; [bp+6]  esquina superior izquierda
-;       push y                  ; [bp+4]
+
 ;       call DibujarSprite
 ;   Devuelve:  nada. Saca sus 5 parametros con "ret 10" (5 palabras)
 ;   Destruye:  nada
 ;
 ; Pila al entrar, despues de "push bp / mov bp, sp":
-;   [bp+0] BP viejo   [bp+2] direccion de retorno   [bp+4] y ... [bp+12] sprite
-;
-; Los pixeles con valor COLOR_TRANSP (CONST.INC) NO se escriben,
-; asi se ve el fondo detras del sprite. Excepcion: si la variable
-; fondoSprite vale 0..255, esos pixeles se pintan con ese color. Es el
-; mismo procedimiento (RG-02), pero permite reemplazar un cuadro de
-; animacion por otro en una sola pasada, sin borrar antes (sin parpadeo).
-;---------------------------------------------------------------------
+
 DibujarSprite PROC
         push bp
         mov  bp, sp
@@ -219,3 +193,62 @@ dsSiguiente:
         pop  bp
         ret  10                 ; retorna y descarta los 10 bytes de parametros
 DibujarSprite ENDP
+; DibujarSpriteX2
+;   Recibe:    los mismos 5 parametros que DibujarSprite, por la pila:
+;              sprite (offset), ancho, alto, x, y (en ese orden de push)
+;   Devuelve:  el sprite ampliado al DOBLE (cada pixel es un bloque de
+;              2x2) con la esquina superior izquierda en (x, y). Ocupa
+;              2*ancho x 2*alto pixeles. Saca sus parametros con "ret 10".
+;   Destruye:  nada
+;   El indice COLOR_TRANSP no se pinta (transparencia real). Se usa para
+;   los iconos de exacto/parcial del tablero: el arte original es de 8x8
+;   y asi se leen mejor sin tener que dibujar otro sprite.
+DibujarSpriteX2 PROC
+        push bp
+        mov  bp, sp
+        push ax
+        push cx
+        push dx
+        push si
+        push di
+        push es
+
+        mov  ax, VIDEO_SEG
+        mov  es, ax
+        mov  di, [bp+4]         ; DI = y*320 + x
+        mov  ax, di
+        shl  di, 8
+        shl  ax, 6
+        add  di, ax
+        add  di, [bp+6]
+
+        mov  si, [bp+12]
+        mov  dx, [bp+8]         ; DX = filas del sprite que faltan
+dxFila:
+        mov  cx, [bp+10]        ; CX = columnas de esta fila
+        push di
+dxColumna:
+        lodsb
+        cmp  al, COLOR_TRANSP
+        je   dxSalta
+        mov  es:[di], al        ; bloque de 2x2 pixeles
+        mov  es:[di+1], al
+        mov  es:[di+ANCHO_PANT], al
+        mov  es:[di+ANCHO_PANT+1], al
+dxSalta:
+        add  di, 2
+        loop dxColumna
+        pop  di
+        add  di, 2 * ANCHO_PANT ; dos filas de pantalla por fila del sprite
+        dec  dx
+        jnz  dxFila
+
+        pop  es
+        pop  di
+        pop  si
+        pop  dx
+        pop  cx
+        pop  ax
+        pop  bp
+        ret  10
+DibujarSpriteX2 ENDP

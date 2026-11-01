@@ -1,12 +1,9 @@
 
-;=====================================================================
 ; CRONO.INC - Cronometro de la partida (funcionalidad opcional)
 ; Cuenta el tiempo con el contador de tics del BIOS (INT 1Ah, 18.2 tics
 ; por segundo), el mismo reloj que controla las animaciones. Se muestra
 ; en el encabezado como "Tiempo mm:ss" y se congela al terminar.
-;=====================================================================
 
-;---------------------------------------------------------------------
 ; ObtenerSegundos
 ;   Recibe:    ticsPartida (fijado por IniciarCrono)
 ;   Devuelve:  AX = segundos transcurridos = tics * 5 / 91
@@ -14,7 +11,6 @@
 ;   Destruye:  AX
 ;   Con 16 bits alcanza para ~1 hora; tics*5 se guarda en DX:AX y el
 ;   cociente (<= 3600) cabe en AX, asi que DIV no desborda.
-;---------------------------------------------------------------------
 ObtenerSegundos PROC
         push cx
         push dx
@@ -29,12 +25,10 @@ ObtenerSegundos PROC
         ret
 ObtenerSegundos ENDP
 
-;---------------------------------------------------------------------
 ; FormatearTiempo
 ;   Recibe:    AX = segundos, DI = direccion donde escribir "mm:ss"
 ;   Devuelve:  5 caracteres ASCII en [DI..DI+4] (minutos topados en 99)
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 FormatearTiempo PROC
         push ax
         push bx
@@ -68,13 +62,11 @@ ftMinutos:
         ret
 FormatearTiempo ENDP
 
-;---------------------------------------------------------------------
 ; DibujarCrono
 ;   Recibe:    AX = segundos a mostrar
 ;   Devuelve:  "Tiempo mm:ss" en el encabezado (96, 6), pintado de una
 ;              sola pasada con el fondo del encabezado (sin parpadeo)
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarCrono PROC
         push ax
         push bx
@@ -96,12 +88,10 @@ DibujarCrono PROC
         ret
 DibujarCrono ENDP
 
-;---------------------------------------------------------------------
 ; IniciarCrono
 ;   Recibe:    nada
 ;   Devuelve:  cronometro en 0 (el encabezado ya muestra 00:00)
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 IniciarCrono PROC
         push ax
         call ObtenerTics
@@ -111,12 +101,10 @@ IniciarCrono PROC
         ret
 IniciarCrono ENDP
 
-;---------------------------------------------------------------------
 ; ActualizarCrono
 ;   Recibe:    cronometro en marcha
 ;   Devuelve:  redibuja el tiempo solo cuando cambia el segundo
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 ActualizarCrono PROC
         push ax
         call ObtenerSegundos
@@ -129,13 +117,11 @@ acFin:
         ret
 ActualizarCrono ENDP
 
-;---------------------------------------------------------------------
 ; FinalizarCrono
 ;   Recibe:    cronometro en marcha
 ;   Devuelve:  tiempoFinal = segundos de la partida; el encabezado
 ;              queda congelado con ese valor
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 FinalizarCrono PROC
         push ax
         call ObtenerSegundos

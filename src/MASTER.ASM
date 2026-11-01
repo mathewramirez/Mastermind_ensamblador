@@ -1,22 +1,12 @@
-;=====================================================================
+
 ; MASTER.ASM - Mastermind "Simbolos de Costa Rica"
-; EIF205 Arquitectura de Computadores - Proyecto II - II Ciclo 2026
-; UNA Sede Regional Brunca
-;
-; FASE 6: partida grafica completa (tablero, panel, historial,
-; victoria/derrota) sobre las pantallas de la Fase 5.
-; La logica se prueba aparte con PRUEBA2/3/4.ASM.
-;
-; Ensamblar (desde Windows, en la raiz del proyecto):
-;       BUILD.bat src\MASTER
-;=====================================================================
 
         .MODEL SMALL
-        .286                    ; permite "push inmediato" y "shl reg, n"
+        .286                    
         .STACK 200h
 
         INCLUDE CONST.INC       ; solo EQU, no genera codigo ni datos
-        INCLUDE MACROS.INC      ; las macros deben definirse ANTES de usarse
+        INCLUDE MACROS.INC      ; las macros 
 
         .DATA
         INCLUDE PALETA.INC      ; tablaPaleta + constantes C_FONDO, C_PANEL...
@@ -25,9 +15,7 @@
         INCLUDE TEXTOS.INC      ; cadenas de las pantallas
 
         .CODE
-;=====================================================================
 ; Punto de entrada. DOS deja DS apuntando al PSP, no a .DATA.
-;=====================================================================
 inicio:
         mov  ax, @data
         mov  ds, ax
@@ -37,6 +25,7 @@ inicio:
         call EntrarModo13h
         call CargarPaleta       ; sin esto los indices 16..71 serian grises
         call CargarFuente       ; direccion de la fuente 8x8 del BIOS
+        call CargarPuntajes     ; mejores puntajes guardados en MEJORES.DAT
 
         call PantallaPresentacion
 menuPrincipal:
@@ -44,10 +33,23 @@ menuPrincipal:
         cmp  al, OPC_JUGAR
         jne  noJugar
 jugarOtra:
+        cmp  modo2j, 0
+        je   unJugador
+        call PartidaDosJugadores ; dos rondas por turnos; AL = 1 otra vez, 0 menu
+        or   al, al
+        jz   menuPrincipal
+        jmp  jugarOtra
+unJugador:
         call IniciarPartida     ; configura el nivel y genera el secreto
         call JugarPartida       ; AL = 0 abandono, 1 victoria, 2 derrota
         or   al, al
         jz   menuPrincipal
+        push ax                 ; AL = resultado, se necesita despues
+        cmp  al, ESTADO_VICTORIA
+        jne  sinRegistro
+        call RegistrarPuntaje   ; si entra al top 5 pide las iniciales
+sinRegistro:
+        pop  ax
         call PantallaFin        ; AL = 1 jugar otra vez, 0 menu
         or   al, al
         jz   menuPrincipal
@@ -58,6 +60,19 @@ noJugar:
         call PantallaDificultad
         jmp  menuPrincipal
 noNivel:
+        cmp  al, OPC_INVERSO
+        jne  noInverso
+jugarInv:
+        call PartidaInversa     ; el programa adivina; AL = 1 otra vez, 0 menu
+        or   al, al
+        jz   menuPrincipal
+        jmp  jugarInv
+noInverso:
+        cmp  al, OPC_PUNTAJES
+        jne  noPuntajes
+        call PantallaPuntajes
+        jmp  menuPrincipal
+noPuntajes:
         cmp  al, OPC_INSTRUC
         jne  noInstruc
         call PantallaInstrucciones
@@ -74,9 +89,7 @@ salir:
         mov  ax, 4C00h          ; AH=4Ch terminar programa, AL=00 sin error
         int  21h
 
-;---------------------------------------------------------------------
 ; Procedimientos, un archivo por responsabilidad.
-;---------------------------------------------------------------------
         INCLUDE VIDEO.INC
         INCLUDE TEXTO.INC
         INCLUDE ANIM.INC
@@ -92,5 +105,9 @@ salir:
         INCLUDE PANEL.INC
         INCLUDE PARTIDA.INC
         INCLUDE PANTALLA.INC
+        INCLUDE PUNTAJES.INC
+        INCLUDE DOSJUG.INC
+        INCLUDE INVERSO.INC
+
 
         END inicio

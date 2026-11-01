@@ -1,16 +1,12 @@
-;=====================================================================
-; CICLO.INC - Ciclo de la partida (Fase 4): registrar el intento,
+; CICLO.INC - Ciclo de la partida : registrar el intento,
 ; avanzar el turno y detectar victoria o derrota (RF-09, RF-10, RF-11)
 ; Trabaja sobre: intento[], historial[], histExactos[], histParciales[],
 ;                turno, estado, numPos, maxIntentos.
-;=====================================================================
 
-;---------------------------------------------------------------------
 ; LimpiarIntento
 ;   Recibe:    numPos
 ;   Devuelve:  intento[] en 0 (casillas vacias), posActiva = 0
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 LimpiarIntento PROC
         push bx
         push cx
@@ -27,7 +23,6 @@ liBorrar:
         ret
 LimpiarIntento ENDP
 
-;---------------------------------------------------------------------
 ; GuardarIntento
 ;   Recibe:    AL = exactos, AH = parciales; intento[]; turno
 ;   Devuelve:  la fila 'turno' del historial con los simbolos del
@@ -35,7 +30,6 @@ LimpiarIntento ENDP
 ;   Destruye:  nada
 ; La fila t empieza en historial[t*MAX_N]; el desplazamiento dentro de
 ; la fila se suma con direccionamiento base-indice [BX+SI] (RT-05).
-;---------------------------------------------------------------------
 GuardarIntento PROC
         push ax
         push bx
@@ -70,7 +64,6 @@ gdCopiar:
         ret
 GuardarIntento ENDP
 
-;---------------------------------------------------------------------
 ; ActualizarEstado
 ;   Recibe:    AL = exactos del ultimo intento; turno (ya avanzado)
 ;   Devuelve:  estado = VICTORIA si exactos == numPos;
@@ -78,7 +71,6 @@ GuardarIntento ENDP
 ;              si no, sigue JUGANDO
 ;   Destruye:  nada
 ; La victoria se revisa primero: acertar en el ultimo intento gana.
-;---------------------------------------------------------------------
 ActualizarEstado PROC
         push ax
         cmp  al, numPos
@@ -95,7 +87,6 @@ aeFin:
         ret
 ActualizarEstado ENDP
 
-;---------------------------------------------------------------------
 ; ConfirmarIntento  (RF-08, RF-09, RF-10, RF-11)
 ;   Recibe:    intento[] COMPLETO (quien llama ya lo verifico con
 ;              ProcesarAccion -> RES_CONFIRMAR)
@@ -105,7 +96,6 @@ ActualizarEstado ENDP
 ;   Destruye:  AX, DL
 ; Orden: evaluar -> guardar en el historial -> avanzar turno ->
 ; actualizar estado -> dejar el intento vacio para el siguiente turno.
-;---------------------------------------------------------------------
 ConfirmarIntento PROC
         call EvaluarIntento     ; AL = exactos, AH = parciales
         call GuardarIntento
@@ -120,12 +110,10 @@ ConfirmarIntento PROC
         ret
 ConfirmarIntento ENDP
 
-;---------------------------------------------------------------------
 ; IntentosRestantes
 ;   Recibe:    turno, maxIntentos
 ;   Devuelve:  AL = maxIntentos - turno
 ;   Destruye:  AL
-;---------------------------------------------------------------------
 IntentosRestantes PROC
         mov  al, maxIntentos
         sub  al, turno

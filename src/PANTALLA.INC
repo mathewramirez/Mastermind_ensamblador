@@ -1,19 +1,8 @@
+; PANTALLA.INC - Presentacion, menu, dificultad, instrucciones y
 
-;=====================================================================
-; PANTALLA.INC - Presentacion, menu, dificultad, instrucciones,
-; creditos y pantalla provisional de partida (Fase 5, RF/Pantallas A-D,G)
-;
-; Todas siguen la distribucion del enunciado: encabezado (0,0,320x20),
-; area de contenido, barra de estado (0,190,320x10). Cada pantalla
-; pinta el fondo UNA vez y luego redibuja solo la zona que cambia.
-;=====================================================================
-
-;---------------------------------------------------------------------
-; PintarPantalla  (apaga la pantalla anterior con un fundido; ver FADE.INC)
 ;   Recibe:    SI = texto del encabezado, DI = texto de la barra de estado
 ;   Devuelve:  fondo, encabezado y barra de estado dibujados
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 PintarPantalla PROC
         push ax
         push bx
@@ -46,13 +35,11 @@ PintarPantalla PROC
         ret
 PintarPantalla ENDP
 
-;---------------------------------------------------------------------
 ; DibujarFilaFichas
 ;   Recibe:    AX = x de la primera, BX = y, CX = cuantas fichas,
 ;              DX = separacion horizontal entre fichas (en pixeles)
 ;   Devuelve:  las primeras CX fichas de tablaFichas dibujadas en fila
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarFilaFichas PROC
         push ax
         push cx
@@ -72,16 +59,14 @@ dfSiguiente:
         pop  cx
         pop  ax
         ret
-DibujarFilaFichas ENDP
+DibujarFilaFichas ENDP 
 
-;---------------------------------------------------------------------
 ; MoverSeleccion
 ;   Recibe:    AL = accion (ACC_ARRIBA o ACC_ABAJO), DL = seleccion actual,
 ;              DH = cantidad de opciones
 ;   Devuelve:  DL = nueva seleccion (da la vuelta en los extremos);
 ;              con cualquier otra accion DL no cambia
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 MoverSeleccion PROC
         cmp  al, ACC_ARRIBA
         jne  msAbajo
@@ -102,24 +87,22 @@ msFin:
         ret
 MoverSeleccion ENDP
 
-;---------------------------------------------------------------------
 ; DibujarNivelActual
 ;   Recibe:    nivel
-;   Devuelve:  "Nivel actual: <nombre>" dibujado en (88,172)
+;   Devuelve:  "Nivel actual: <nombre>" dibujado en (88,178)
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarNivelActual PROC
         push ax
         push bx
         push dx
         push si
-        TEXTO tNivelAct, 88, 172, C_TEXTO, 1
+        TEXTO tNivelAct, 88, 178, C_TEXTO, 1
         mov  bl, nivel
         xor  bh, bh
         shl  bx, 1
         mov  si, nombresNivel[bx]
         mov  ax, 200            ; 88 + 13 caracteres*8 + 8 de espacio
-        mov  bx, 172
+        mov  bx, 178
         mov  dl, C_DORADO
         mov  dh, 1
         call DibujarTexto
@@ -130,17 +113,12 @@ DibujarNivelActual PROC
         ret
 DibujarNivelActual ENDP
 
-;=====================================================================
-; A. PRESENTACION
-;=====================================================================
+;   PRESENTACION
 
-;---------------------------------------------------------------------
-; PantallaPresentacion
 ;   Recibe:    nada
 ;   Devuelve:  vuelve cuando el jugador pulsa una tecla; mientras tanto
 ;              la mascota alterna sus 2 cuadros (RG-05)
-;   Destruye:  nada
-;---------------------------------------------------------------------
+;Destruye:  nada
 PantallaPresentacion PROC
         push ax
         push bx
@@ -185,17 +163,14 @@ PantallaPresentacion PROC
         ret
 PantallaPresentacion ENDP
 
-;=====================================================================
-; B. MENU PRINCIPAL
-;=====================================================================
+; MENU PRINCIPAL
 
-;---------------------------------------------------------------------
 ; DibujarOpcion
-;   Recibe:    AL = opcion (0..4), opcionMenu (la resaltada)
+;   Recibe:    AL = opcion (0..7), opcionMenu (la resaltada), modo2j
 ;   Devuelve:  solo ESA fila del menu: barra (azul si esta resaltada,
 ;              fondo si no), su texto y, si esta resaltada, los triangulos
 ;   Destruye:  nada
-;---------------------------------------------------------------------
+;   Jugadores muestra "Jugadores: 1" o "Jugadores: 2" segun modo2j.
 DibujarOpcion PROC
         push ax
         push bx
@@ -205,9 +180,9 @@ DibujarOpcion PROC
 
         xor  ah, ah
         mov  di, ax             ; DI = opcion
-        mov  bl, 26
-        mul  bl                 ; AX = i * 26
-        add  ax, 28
+        mov  bl, 18
+        mul  bl                 ; AX = i * 18
+        add  ax, 22
         mov  bx, ax             ; BX = y de la barra de esta opcion
         mov  dl, C_FONDO        ; sin resaltar: la barra se borra con el fondo
         mov  al, opcionMenu
@@ -216,11 +191,18 @@ DibujarOpcion PROC
         jne  doBarra
         mov  dl, C_BORDE        ; resaltada: barra azul
 doBarra:
-        RELLENAR_RECT dx, 40, bx, 240, 22
+        RELLENAR_RECT dx, 12, bx, 296, 17
         mov  si, di
         shl  si, 1
         mov  si, opcionesMenu[si]
-        add  bx, 3              ; el texto de 16 px queda centrado en la barra
+        cmp  di, OPC_JUGADORES
+        jne  doTexto
+        mov  si, OFFSET tOpJug1 ; la opcion Jugadores cambia su texto con el modo
+        cmp  modo2j, 0
+        je   doTexto
+        mov  si, OFFSET tOpJug2
+doTexto:
+        add  bx, 1              ; el texto de 16 px ocupa casi toda la barra de 17
         mov  dl, C_TEXTO
         mov  dh, 2
         call CentrarTexto
@@ -228,8 +210,8 @@ doBarra:
         xor  ah, ah
         cmp  ax, di
         jne  doFin
-        TEXTO tFlechaIzq, 48, bx, C_DORADO, 2
-        TEXTO tFlechaDer, 264, bx, C_DORADO, 2
+        TEXTO tFlechaIzq, 16, bx, C_DORADO, 2
+        TEXTO tFlechaDer, 288, bx, C_DORADO, 2
 doFin:
         pop  di
         pop  si
@@ -239,17 +221,15 @@ doFin:
         ret
 DibujarOpcion ENDP
 
-;---------------------------------------------------------------------
 ; DibujarOpcionesMenu
 ;   Recibe:    opcionMenu (opcion resaltada), nivel; la pantalla ya
 ;              esta pintada con PintarPantalla
-;   Devuelve:  las 5 opciones, el nivel actual y el aviso de modo prueba
+;   Devuelve:  las 8 opciones, el nivel actual y el aviso de modo prueba
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarOpcionesMenu PROC
         push ax
         push cx
-        xor  cl, cl             ; CL = opcion que se dibuja (0..4)
+        xor  cl, cl             ; CL = opcion que se dibuja (0..7)
 doItem:
         mov  al, cl
         call DibujarOpcion
@@ -263,13 +243,13 @@ doItem:
         ret
 DibujarOpcionesMenu ENDP
 
-;---------------------------------------------------------------------
 ; PantallaMenu
 ;   Recibe:    opcionMenu (la ultima que se uso)
 ;   Devuelve:  AL = opcion elegida con ENTER (OPC_xxx)
 ;   Destruye:  AX
-;   Navegacion: flechas arriba/abajo; las demas teclas se ignoran.
-;---------------------------------------------------------------------
+;   Navegacion: flechas arriba/abajo. En la opcion Jugadores, ENTER o las
+;   flechas izquierda/derecha alternan 1 y 2 jugadores sin salir del menu.
+;   T activa el modo prueba; las demas teclas se ignoran.
 PantallaMenu PROC
         push dx
         push si
@@ -288,11 +268,27 @@ pmLeer:
         je   pmPrueba
         call TraducirTecla      ; AL = accion; mismo codigo que la partida
         cmp  al, ACC_CONFIRMAR
-        je   pmElegida
+        je   pmEnter
         cmp  al, ACC_ARRIBA
         je   pmMover
         cmp  al, ACC_ABAJO
+        je   pmMover
+        cmp  al, ACC_IZQ
+        je   pmLado
+        cmp  al, ACC_DER
         jne  pmLeer             ; cualquier otra tecla: ignorar
+pmLado:
+        cmp  opcionMenu, OPC_JUGADORES
+        jne  pmLeer             ; izquierda/derecha solo sirven en Jugadores
+        jmp  pmAlternar
+pmEnter:
+        cmp  opcionMenu, OPC_JUGADORES
+        jne  pmElegida
+pmAlternar:
+        xor  modo2j, 1          ; 1 jugador <-> 2 jugadores
+        mov  al, opcionMenu
+        call DibujarOpcion      ; solo se redibuja esa fila
+        jmp  pmLeer
 pmMover:
         mov  dl, opcionMenu
         mov  dh, NUM_OPC_MENU
@@ -316,16 +312,13 @@ pmElegida:
         ret
 PantallaMenu ENDP
 
-;=====================================================================
-; C. SELECCION DE DIFICULTAD
-;=====================================================================
+; SELECCION DE DIFICULTAD
 
 ; DibujarTarjeta
 ;   Recibe:    AL = nivel (0..2), selNivel (el resaltado)
 ;   Devuelve:  la tarjeta de ese nivel con sus reglas; la resaltada
 ;              tiene borde dorado
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarTarjeta PROC
         push ax
         push bx
@@ -385,7 +378,6 @@ DibujarTarjeta ENDP
 ;              no). El interior y el texto no se tocan, asi al mover la
 ;              seleccion no hay ningun instante con la tarjeta en blanco.
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarBordeTarjeta PROC
         push ax
         push bx
@@ -417,12 +409,10 @@ dbPintar:
         ret
 DibujarBordeTarjeta ENDP
 
-;---------------------------------------------------------------------
 ; DibujarNiveles
 ;   Recibe:    selNivel (resaltado)
 ;   Devuelve:  las 3 tarjetas de nivel
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 DibujarNiveles PROC
         push ax
         push cx
@@ -438,13 +428,11 @@ dnTarjeta:
         ret
 DibujarNiveles ENDP
 
-;---------------------------------------------------------------------
 ; PantallaDificultad
 ;   Recibe:    nivel (nivel vigente)
 ;   Devuelve:  ENTER guarda el nivel resaltado en 'nivel'; ESC vuelve
 ;              sin cambiarlo
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 PantallaDificultad PROC
         push ax
         push dx
@@ -491,15 +479,11 @@ pdFin:
         ret
 PantallaDificultad ENDP
 
-;=====================================================================
-; D. INSTRUCCIONES (2 paginas)
-;=====================================================================
+; INSTRUCCIONES (2 paginas)
 
-;---------------------------------------------------------------------
 ; PaginaInstr1
 ;   Recibe: nada.  Devuelve: pagina 1 (objetivo y pistas, con iconos).
 ;   Destruye: nada
-;---------------------------------------------------------------------
 PaginaInstr1 PROC
         push ax
         push bx
@@ -528,28 +512,26 @@ PaginaInstr1 PROC
         ret
 PaginaInstr1 ENDP
 
-;---------------------------------------------------------------------
 ; PaginaInstr2
-;   Recibe: nada.  Devuelve: pagina 2 (niveles y controles).
+;   Recibe: nada.  Devuelve: pagina 2 (los tres niveles, uno por bloque).
 ;   Destruye: nada
-;---------------------------------------------------------------------
 PaginaInstr2 PROC
         push ax
         push bx
         push dx
         push si
-        TEXTO tNiveles,   16, 28, C_DORADO, 1
-        TEXTO tNivF1,     16, 40, C_TEXTO, 1
-        TEXTO tNivF2,     16, 50, C_TEXTO, 1
-        TEXTO tNivN1,     16, 62, C_TEXTO, 1
-        TEXTO tNivN2,     16, 72, C_TEXTO, 1
-        TEXTO tNivD1,     16, 84, C_TEXTO, 1
-        TEXTO tNivD2,     16, 94, C_TEXTO, 1
-        TEXTO tControles, 16, 112, C_DORADO, 1
-        TEXTO tCtl1,      16, 124, C_TEXTO, 1
-        TEXTO tCtl2,      16, 134, C_TEXTO, 1
-        TEXTO tCtl3,      16, 144, C_TEXTO, 1
-        TEXTO tCtl4,      16, 154, C_TEXTO, 1
+        TEXTO tNivF0, 16,  28, C_DORADO, 1
+        TEXTO tNivF1, 16,  38, C_TEXTO, 1
+        TEXTO tNivF2, 16,  48, C_TEXTO, 1
+        TEXTO tNivF3, 16,  58, C_TEXTO, 1
+        TEXTO tNivN0, 16,  76, C_DORADO, 1
+        TEXTO tNivN1, 16,  86, C_TEXTO, 1
+        TEXTO tNivN2, 16,  96, C_TEXTO, 1
+        TEXTO tNivN3, 16, 106, C_TEXTO, 1
+        TEXTO tNivD0, 16, 124, C_DORADO, 1
+        TEXTO tNivD1, 16, 134, C_TEXTO, 1
+        TEXTO tNivD2, 16, 144, C_TEXTO, 1
+        TEXTO tNivD3, 16, 154, C_TEXTO, 1
         pop  si
         pop  dx
         pop  bx
@@ -557,13 +539,128 @@ PaginaInstr2 PROC
         ret
 PaginaInstr2 ENDP
 
-;---------------------------------------------------------------------
+; PaginaInstr3
+;   Recibe: nada.  Devuelve: pagina 3 (controles de la partida).
+;   Destruye: nada
+PaginaInstr3 PROC
+        push ax
+        push bx
+        push dx
+        push si
+        TEXTO tControles, 16,  28, C_DORADO, 1
+        TEXTO tCtl1,      16,  44, C_TEXTO, 1
+        TEXTO tCtl2,      16,  58, C_TEXTO, 1
+        TEXTO tCtl2b,     16,  68, C_TEXTO, 1
+        TEXTO tCtl3,      16,  84, C_TEXTO, 1
+        TEXTO tCtl3b,     16,  94, C_TEXTO, 1
+        TEXTO tCtl5,      16, 110, C_TEXTO, 1
+        TEXTO tCtl4,      16, 126, C_TEXTO, 1
+        pop  si
+        pop  dx
+        pop  bx
+        pop  ax
+        ret
+PaginaInstr3 ENDP
+
+; PaginaInstr4
+;   Recibe: nada.  Devuelve: pagina 4 (modo de dos jugadores).
+;   Destruye: nada
+PaginaInstr4 PROC
+        push ax
+        push bx
+        push dx
+        push si
+        TEXTO tDosH,  16,  28, C_DORADO, 1
+        TEXTO tDos1,  16,  40, C_TEXTO, 1
+        TEXTO tDos2,  16,  50, C_TEXTO, 1
+        TEXTO tDos3,  16,  66, C_TEXTO, 1
+        TEXTO tDos4,  16,  76, C_TEXTO, 1
+        TEXTO tDos5,  16,  86, C_TEXTO, 1
+        TEXTO tDos6,  16,  96, C_TEXTO, 1
+        TEXTO tDos7,  16, 106, C_TEXTO, 1
+        TEXTO tDosG,  16, 122, C_DORADO, 1
+        TEXTO tDos8,  16, 134, C_TEXTO, 1
+        TEXTO tDos9,  16, 144, C_TEXTO, 1
+        TEXTO tDos10, 16, 154, C_TEXTO, 1
+        TEXTO tDos11, 16, 164, C_TEXTO, 1
+        pop  si
+        pop  dx
+        pop  bx
+        pop  ax
+        ret
+PaginaInstr4 ENDP
+
+; PaginaInstr5
+;   Recibe: nada.  Devuelve: pagina 5 (modo inverso: la computadora adivina).
+;   Destruye: nada
+PaginaInstr5 PROC
+        push ax
+        push bx
+        push dx
+        push si
+        TEXTO tInvH,  16,  28, C_DORADO, 1
+        TEXTO tInv1,  16,  40, C_TEXTO, 1
+        TEXTO tInv2,  16,  54, C_TEXTO, 1
+        TEXTO tInv3,  16,  64, C_TEXTO, 1
+        TEXTO tInv4,  16,  74, C_TEXTO, 1
+        TEXTO tInv5,  16,  84, C_TEXTO, 1
+
+        DIBUJAR_SPRITE EXACTO_0, EXACTO_ANCHO, EXACTO_ALTO, 16, 104
+        TEXTO tExacto1,  32, 100, C_TEXTO, 1
+        TEXTO tExacto2,  32, 110, C_TEXTO, 1
+
+        DIBUJAR_SPRITE PARCIAL_0, PARCIAL_ANCHO, PARCIAL_ALTO, 16, 128
+        TEXTO tParcial1, 32, 124, C_TEXTO, 1
+        TEXTO tParcial2, 32, 134, C_TEXTO, 1
+
+        TEXTO tInv6,  16, 150, C_TEXTO, 1
+        TEXTO tInv7,  16, 160, C_TEXTO, 1
+        TEXTO tInv8,  16, 170, C_TEXTO, 1
+        pop  si
+        pop  dx
+        pop  bx
+        pop  ax
+        ret
+PaginaInstr5 ENDP
+
+; DibujarPaginaInstr
+;   Recibe:    pagInstruc (0 a NUM_PAG_INSTR-1)
+;   Devuelve:  dibuja el contenido de esa pagina
+;   Destruye:  nada
+DibujarPaginaInstr PROC
+        push ax
+        mov  al, pagInstruc
+        or   al, al
+        jnz  dpiP2
+        call PaginaInstr1
+        jmp  dpiFin
+dpiP2:
+        cmp  al, 1
+        jne  dpiP3
+        call PaginaInstr2
+        jmp  dpiFin
+dpiP3:
+        cmp  al, 2
+        jne  dpiP4
+        call PaginaInstr3
+        jmp  dpiFin
+dpiP4:
+        cmp  al, 3
+        jne  dpiP5
+        call PaginaInstr4
+        jmp  dpiFin
+dpiP5:
+        call PaginaInstr5
+dpiFin:
+        pop  ax
+        ret
+DibujarPaginaInstr ENDP
+
 ; PantallaInstrucciones
 ;   Recibe:    nada
 ;   Devuelve:  vuelve al menu con ESC. ENTER / flecha derecha pasan a la
 ;              pagina siguiente; flecha izquierda, a la anterior.
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 PantallaInstrucciones PROC
         push ax
         push si
@@ -572,19 +669,18 @@ PantallaInstrucciones PROC
         mov  pagInstruc, 0
 piRedibujar:
         mov  si, OFFSET tHdrInstr
-        mov  di, OFFSET tBarraI1
+        mov  di, OFFSET tBarraI4        ; paginas intermedias
         cmp  pagInstruc, 0
-        je   piPintar
-        mov  di, OFFSET tBarraI2
+        jne  piNoPrimera
+        mov  di, OFFSET tBarraI1
+        jmp  piPintar
+piNoPrimera:
+        cmp  pagInstruc, NUM_PAG_INSTR-1
+        jne  piPintar
+        mov  di, OFFSET tBarraI2        ; ultima pagina
 piPintar:
         call PintarPantalla
-        cmp  pagInstruc, 0
-        jne  piSegunda
-        call PaginaInstr1
-        jmp  piTecla
-piSegunda:
-        call PaginaInstr2
-piTecla:
+        call DibujarPaginaInstr
         call VaciarTeclado
 piLeer:
         call EsperarTecla
@@ -597,12 +693,14 @@ piLeer:
         je   piSiguiente
         cmp  al, ACC_IZQ
         jne  piLeer
-        mov  pagInstruc, 0      ; izquierda: pagina anterior
+        cmp  pagInstruc, 0
+        je   piLeer             ; ya es la primera pagina
+        dec  pagInstruc
         jmp  piRedibujar
 piSiguiente:
-        cmp  pagInstruc, 1
-        je   piLeer             ; ya es la ultima pagina
-        mov  pagInstruc, 1
+        cmp  pagInstruc, NUM_PAG_INSTR-1
+        jae  piLeer             ; ya es la ultima pagina
+        inc  pagInstruc
         jmp  piRedibujar
 piFin:
         pop  di
@@ -611,14 +709,10 @@ piFin:
         ret
 PantallaInstrucciones ENDP
 
-;=====================================================================
-; G. CREDITOS
-;=====================================================================
+;CREDITOS
 
-;---------------------------------------------------------------------
 ; PantallaCreditos
 ;   Recibe: nada.  Devuelve: vuelve al pulsar una tecla.  Destruye: nada
-;---------------------------------------------------------------------
 PantallaCreditos PROC
         push ax
         push bx
@@ -655,6 +749,3 @@ PantallaCreditos PROC
         pop  ax
         ret
 PantallaCreditos ENDP
-
-;=====================================================================
-; PARTIDA (provisional: el tablero llega en la Fase 6)

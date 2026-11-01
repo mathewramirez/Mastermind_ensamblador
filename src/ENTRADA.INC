@@ -1,9 +1,6 @@
-;=====================================================================
 ; ENTRADA.INC - Aplica las acciones del teclado al intento (RF-06, RF-07)
 ; Trabaja sobre: intento[], posActiva, colorSel, numPos, numColores.
-;=====================================================================
 
-;---------------------------------------------------------------------
 ; ProcesarAccion
 ;   Recibe:    AL = accion (ACC_xxx), AH = ID de simbolo si es ACC_SIMBOLO
 ;   Devuelve:  AL = resultado (RES_xxx de CONST.INC)
@@ -12,7 +9,6 @@
 ; Solo DECIDE y modifica el intento; no dibuja ni evalua. Quien llama
 ; mira el resultado: RES_CAMBIO -> redibujar, RES_INCOMPLETO -> avisar
 ; (sin gastar turno), RES_CONFIRMAR -> evaluar, RES_SALIR -> salir.
-;---------------------------------------------------------------------
 ProcesarAccion PROC
         push dx
 
@@ -74,12 +70,10 @@ paFin:
         ret
 ProcesarAccion ENDP
 
-;---------------------------------------------------------------------
 ; MoverIzquierda
 ;   Recibe:    posActiva, numPos
 ;   Devuelve:  posActiva una casilla a la izquierda (de 0 salta a N-1)
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 MoverIzquierda PROC
         push ax
         mov  al, posActiva
@@ -93,12 +87,11 @@ miRestar:
         ret
 MoverIzquierda ENDP
 
-;---------------------------------------------------------------------
 ; MoverDerecha
 ;   Recibe:    posActiva, numPos
 ;   Devuelve:  posActiva una casilla a la derecha (de N-1 salta a 0)
 ;   Destruye:  nada
-;---------------------------------------------------------------------
+
 MoverDerecha PROC
         push ax
         mov  al, posActiva
@@ -112,13 +105,11 @@ mdGuardar:
         ret
 MoverDerecha ENDP
 
-;---------------------------------------------------------------------
 ; CambiarSimbolo
 ;   Recibe:    DL = 1 (siguiente) o 0FFh (anterior); posActiva, numColores
 ;   Devuelve:  intento[posActiva] y colorSel con el nuevo simbolo
 ;              (ciclo 1..C; una casilla vacia pasa a 1 o a C)
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 CambiarSimbolo PROC
         push ax
         push bx
@@ -143,13 +134,11 @@ csGuardar:
         ret
 CambiarSimbolo ENDP
 
-;---------------------------------------------------------------------
 ; PonerSimbolo
 ;   Recibe:    AL = ID del simbolo (1..C); posActiva, numPos
 ;   Devuelve:  intento[posActiva] = AL, colorSel = AL y la posicion
 ;              activa avanza una casilla (si no era la ultima)
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 PonerSimbolo PROC
         push ax
         push bx
@@ -167,12 +156,10 @@ psFin:
         ret
 PonerSimbolo ENDP
 
-;---------------------------------------------------------------------
 ; BorrarPosicion
 ;   Recibe:    posActiva
 ;   Devuelve:  intento[posActiva] = 0 (casilla vacia)
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 BorrarPosicion PROC
         push bx
         mov  bl, posActiva
@@ -182,13 +169,11 @@ BorrarPosicion PROC
         ret
 BorrarPosicion ENDP
 
-;---------------------------------------------------------------------
 ; IntentoCompleto  (RF-07)
 ;   Recibe:    intento[], numPos
 ;   Devuelve:  AL = 1 si las numPos casillas tienen simbolo; AL = 0 si
 ;              alguna esta vacia (valor 0)
 ;   Destruye:  AX
-;---------------------------------------------------------------------
 IntentoCompleto PROC
         push bx
         push cx

@@ -1,14 +1,10 @@
-;=====================================================================
 ; JUEGO.INC - Logica del juego: niveles, reinicio y evaluacion
-;=====================================================================
 
-;---------------------------------------------------------------------
 ; ConfigurarNivel
 ;   Recibe:    nivel (0=facil, 1=normal, 2=dificil)
 ;   Devuelve:  numPos, numColores, repeticion y maxIntentos copiados
 ;              de tablaNiveles
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 ConfigurarNivel PROC
         push ax
         push bx
@@ -28,13 +24,11 @@ ConfigurarNivel PROC
         ret
 ConfigurarNivel ENDP
 
-;---------------------------------------------------------------------
 ; IniciarPartida
 ;   Recibe:    nivel
 ;   Devuelve:  configuracion cargada, arreglos en 0, turno = 0,
 ;              estado = jugando y un secreto nuevo
 ;   Destruye:  nada
-;---------------------------------------------------------------------
 IniciarPartida PROC
         push ax
         push cx
@@ -65,22 +59,20 @@ IniciarPartida PROC
         ret
 IniciarPartida ENDP
 
-;---------------------------------------------------------------------
 ; EvaluarIntento  (RF-08)
 ;   Recibe:    secreto[] e intento[] con numPos IDs (1..C) cada uno
 ;   Devuelve:  AL = exactos  (simbolo correcto en su posicion)
 ;              AH = parciales (simbolo correcto en otra posicion)
 ;   Destruye:  AX; no modifica secreto ni intento (trabaja con copias)
 ;
-; Equivale al calculo de "toros y vacas" del enunciado:
+; Equivale al calculo 
 ;   exacto = toro, parcial = vaca.
-; 1) Exactos: misma posicion y mismo simbolo. Ambas casillas se ponen
+;Exactos: misma posicion y mismo simbolo. Ambas casillas se ponen
 ;    en 0 para que esa ficha no se cuente otra vez.
-; 2) Parciales: cada ficha restante del intento busca UNA igual en lo
+;Parciales: cada ficha restante del intento busca UNA igual en lo
 ;    que queda del secreto; al encontrarla se anula en el secreto.
 ;    Asi, si el secreto tiene dos fichas iguales y el intento tres,
 ;    solo dos pueden producir aciertos.
-;---------------------------------------------------------------------
 EvaluarIntento PROC
         push bx
         push cx
@@ -106,7 +98,7 @@ EvaluarIntento PROC
 
         xor  dx, dx             ; DL = exactos, DH = parciales
 
-        ; ---- 1) exactos ----
+        ;  exactos
         mov  cx, bx
         xor  si, si
 evExactos:
@@ -122,7 +114,7 @@ evNoExacto:
         inc  si
         loop evExactos
 
-        ; ---- 2) parciales ----
+        ;parciales 
         mov  cx, bx
         xor  si, si
 evAfuera:
