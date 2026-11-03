@@ -312,10 +312,7 @@ csFin:
         pop  bx
         ret
 ConfirmarSalida ENDP
-; JugarPartida
-;   Recibe:    partida iniciada con IniciarPartida (nivel, modoPrueba, modo2j)
-;   Devuelve:  AL = 0 abandono (ESC), 1 victoria, 2 derrota
-;   Destruye:  AX
+
 JugarPartida PROC
         push bx
         push cx
@@ -396,7 +393,8 @@ jpConfirmar:
         jne  jpTermino
         mov  si, OFFSET sndConfirmar
         call IniciarSonido
-        jmp  jpLeerjjpTermino:
+        jmp  jpLeer
+jpTermino:
         ; la partida termino: congelar el cronometro y dejar ver el tablero
         call FinalizarCrono
         mov  si, OFFSET tFinJ
