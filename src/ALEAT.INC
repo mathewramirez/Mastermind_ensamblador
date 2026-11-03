@@ -1,4 +1,4 @@
-; ALEAT.INC - Generador pseudoaleatorio y codigo secreto (RF-04, RF-05)}
+; ALEAT.INC - Generador pseudoaleatorio y codigo secreto 
 ; SembrarAleatorio
 ;   Recibe:    nada
 ;   Devuelve:  semilla actualizada con el contador de tics del BIOS
