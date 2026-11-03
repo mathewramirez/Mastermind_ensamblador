@@ -14,11 +14,10 @@ Versión gráfica del juego Mastermind (Toros y Vacas) escrita en **ensamblador 
 /bin                     ejecutable final entregado (MASTER.EXE)
 /sprites                 sprites originales (.ase de Aseprite)
 /herramientas            sprites2asm.py + paleta.json (solo diseño; no es parte del juego)
-/doc                     documento técnico, bitácora, hoja de sprites, tabla de paleta, uso de IA
+/doc                     documento técnico, bitácora, uso de IA, hoja de sprites, tabla de paleta y tablas de bytes
 /Turbo Assembler (TASM)  TASM, TLINK y TD del curso
 BUILD.bat                script de ensamblado y ejecución del curso
 ABRIR_DOSBOX.bat         abre DOSBox con todo montado, para trabajar a mano
-EJECUTAR.bat             abre DOSBox y corre el ejecutable ya compilado (bin\MASTER.EXE)
 ```
 
 ### Módulos de `/src`
@@ -50,7 +49,6 @@ EJECUTAR.bat             abre DOSBox y corre el ejecutable ya compilado (bin\MAS
 | `PUNTAJES.INC` | Mejores puntajes guardados en `MEJORES.DAT` |
 | `DOSJUG.INC` | Modo de dos jugadores por turnos |
 | `INVERSO.INC` | Modo inverso: el programa deduce el código del jugador |
-| `TV_TEST.ASM` | Prueba independiente del algoritmo de toros y vacas |
 
 ## Requisitos
 
@@ -67,7 +65,7 @@ Desde una terminal de Windows (`cmd`) en la raíz del proyecto:
 BUILD.bat src\MASTER
 ```
 
-Ensambla, enlaza y ejecuta el juego en DOSBox. Si el ensamblado o el enlace fallan, DOSBox se cierra. Para depurar con Turbo Debugger:
+Ensambla, enlaza y ejecuta el juego en DOSBox, y deja `MASTER.EXE` en la carpeta `src`. Si el ensamblado o el enlace fallan, DOSBox se cierra. Para depurar con Turbo Debugger:
 
 ```
 BUILD.bat src\MASTER debug
@@ -88,21 +86,17 @@ El primer comando solo lista los `.INC` para comprobar que están todos antes de
 
 > Siempre se ensambla `master`, nunca un `.INC` suelto: los `.INC` se incluyen desde `MASTER.ASM`.
 
-### Ejecutar el juego ya compilado
+### Opción 3: ejecutar el juego ya compilado
 
-Haz doble clic en `EJECUTAR.bat`. Abre DOSBox con la carpeta `bin` montada como `C:` y ejecuta `MASTER.EXE`.
-
-### Prueba independiente del algoritmo
-
-Dentro de DOSBox, con `ABRIR_DOSBOX.bat`:
+`bin\MASTER.EXE` es el ejecutable entregado, generado con el código de `/src`. No hace falta ensamblar. Abre DOSBox y escribe (cambia `<ruta del proyecto>` por la carpeta donde está el proyecto):
 
 ```
-tasm tv_test
-tlink tv_test
-tv_test
+mount c "<ruta del proyecto>\bin"
+c:
+MASTER
 ```
 
-Imprime los toros y las vacas de un secreto y un intento fijos.
+Los cuatro casos de la Tabla 2 del enunciado se prueban dentro del juego con el modo de prueba (ver más abajo).
 
 ## Cómo se juega
 
@@ -159,9 +153,12 @@ Al terminar una partida, ENTER juega otra vez y ESC o M vuelven al menú.
 ## Modo inverso
 
 1. En el menú elige **Modo inverso**.
-2. Piensa un código y no se lo digas al programa.
-3. El programa propone un intento. Tú respondes cuántos exactos y cuántos parciales tiene con ↑ ↓ (cambia el número) y ← → (cambia el campo), y ENTER para confirmar.
-4. El programa descarta todos los códigos que no son compatibles con tus respuestas y propone el siguiente que sí lo es. Si tus respuestas son imposibles, lo avisa.
+2. Escribe en el panel el código que vas a pensar, con las teclas de los símbolos (BACKSPACE borra, ENTER empieza, ESC vuelve al menú). En Fácil no se aceptan símbolos repetidos. Ese código queda a la vista en la pantalla para que no lo olvides.
+3. El programa propone un intento. Tú respondes cuántos exactos y cuántos parciales tiene: ↑ ↓ cambian el número, ← → cambian el campo, también puedes escribir el dígito directamente, y ENTER confirma.
+4. Antes de aceptar tu respuesta, el programa la compara con los exactos y parciales reales de tu código. Si no coincide, suena un aviso (`Eso no coincide con tu código: corrige`), no se dibuja nada en el tablero, no se gasta intento y puedes corregir los números.
+5. Con tus respuestas correctas, el programa descarta todos los códigos que no son compatibles y propone el siguiente que sí lo es.
+
+El código que escribes **no se usa para deducir**: el programa solo usa tus respuestas. Se usa únicamente para detectar si te equivocaste al responder. ESC durante la partida pide confirmación antes de abandonar.
 
 Si el programa lo adivina, queda en la categoría COMPUTADORA de Mejores puntajes con las siglas CPU, sin pedir iniciales.
 
@@ -214,7 +211,8 @@ Genera `src\SPRITES.INC`, `src\PALETA.INC`, `doc\hoja_sprites.png` y `doc\tabla_
 ## Notas técnicas
 
 - **Vídeo:** modo 13h por INT 10h, dibujo directo en `A000h`. La pantalla se redibuja de forma incremental (solo lo que cambia) para evitar el parpadeo.
-- **Sprites:** una sola rutina `DibujarSprite` (datos, ancho, alto, x, y); el índice de color 0 es transparente. Los iconos de exacto y parcial son de 8x8 y en Normal y Difícil se dibujan al doble con `DibujarSpriteX2`.
+- **Tablero:** la geometría de cada nivel está en la tabla `tablaGeom` de `DATOS.INC` (Fácil, Normal, Difícil, en ese orden). Normal y Difícil usan una columna de 10 filas; Fácil usa 2 columnas de 6 filas para que quepan los 12 intentos a la vez en los 168 px de alto del tablero.
+- **Sprites:** una sola rutina `DibujarSprite` (datos, ancho, alto, x, y); el índice de color 0 es transparente. Los iconos de exacto y parcial son de 8x8: en Fácil se dibujan tal cual, en dos líneas, y en Normal y Difícil se dibujan al doble con `DibujarSpriteX2`.
 - **Paleta:** 56 colores propios desde el índice 16, cargados con `OUT` a los puertos `3C8h` y `3C9h`. La tabla está en `doc\tabla_paleta.md`.
 - **Animaciones:** mascota de presentación, cursor de la casilla activa y animaciones de victoria y derrota. Su velocidad depende del contador de tics del BIOS (INT 1Ah), no de la CPU.
 - **Aleatoriedad:** generador congruencial lineal sembrado con INT 1Ah función 00h.
@@ -222,6 +220,3 @@ Genera `src\SPRITES.INC`, `src\PALETA.INC`, `doc\hoja_sprites.png` y `doc\tabla_
 - **Rendimiento:** en el modo inverso con nivel Difícil el programa hace muchos cálculos para buscar el siguiente código. Si en tu equipo tarda demasiado, sube los ciclos de DOSBox con Ctrl+F12.
 - **Salida:** se restaura el modo de vídeo original y se regresa a DOS con INT 21h función 4Ch.
 
-## Uso de inteligencia artificial
-
-El detalle del uso de IA en este proyecto está declarado en el documento técnico y en `doc\USO_IA.md`.
