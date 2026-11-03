@@ -219,6 +219,18 @@ tInvSinSol  DB 'No hay codigo posible: revisa respuestas',0
 tInvGano    DB 'LO ADIVIN',90h,0
 tInvPerdio  DB 'ME GANASTE',0
 tInvFalla   DB 'No acert',82h,' en mis intentos',0
+tInvCod      DB 'MI CODIGO',0
+tInvCod1     DB 'Piensa tu c',0A2h,'digo y escr',0A1h,'belo',0
+tInvCod2     DB 'con las teclas de los s',0A1h,'mbolos',0
+tInvCod3     DB 'Es solo un recordatorio para ti',0
+tInvBarraCod DB 'BS borra ENTER listo ESC menu',0
+tInvListo    DB 'Listo: ENTER empieza, BS corrige',0
+tInvFalta    DB 'Faltan s',0A1h,'mbolos en tu c',0A2h,'digo',0
+
+tInvMal      DB 'Eso no coincide con tu c',0A2h,'digo: corrige',0
+
+
+
 
 ;Confirmacion al salir de una partida
 tSalirT1    DB 'Salir de la partida?',0

@@ -199,7 +199,6 @@ DibujarIconoRetro PROC
         ret
 diChico:
         push ax
-        push ax
         push bx
         push cx
         push si

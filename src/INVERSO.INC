@@ -1,7 +1,31 @@
-;=====================================================================
 ; INVERSO.INC - Modo inverso (opcional): el jugador piensa un codigo y el
 ; programa lo deduce aplicando una estrategia de DESCARTE.
 ;
+; Como funciona:
+;  1) El jugador escribe su codigo al empezar. El programa NO lo usa para
+;     deducir: solo lo usa para comprobar que las respuestas del jugador
+;     sean correctas. Luego el programa propone un primer intento fijo
+;     (invApertura) y el jugador le responde cuantos toros (exactos) y
+;     vacas (parciales) tiene.
+;  2) Antes de aceptar la respuesta, se calculan los toros y vacas reales
+;     del intento contra el codigo del jugador. Si no coinciden, se avisa
+;     y no se pinta ni se gasta ningun turno: el jugador corrige.
+;  3) Cada respuesta correcta se guarda en el historial. A partir de ahi
+;     el programa recorre TODOS los codigos posibles en orden (como un
+;     cuentakilometros en base C) y descarta los que no habrian dado
+;     exactamente esas respuestas. El primero que sobrevive es el
+;     siguiente intento.
+;  4) Un codigo descartado nunca vuelve a servir (el historial solo
+;     crece), por eso la busqueda continua desde donde quedo: en total
+;     se recorren los codigos una sola vez durante toda la partida.
+;
+; Comparar un candidato con un intento anterior NO usa EvaluarIntento:
+; toros = posiciones iguales; vacas = suma de min(veces que aparece cada
+; simbolo en el candidato, en el intento) menos los toros. Los conteos de
+; cada intento se calculan una vez (histCnt) y los del candidato solo
+; cuando pasa la prueba de toros: es lo que lo hace lo bastante rapido
+; para el nivel Dificil (8^5 = 32768 codigos) en un 8086.
+
 ; InvIniciar
 ;   Recibe:    nivel
 ;   Devuelve:  configuracion del nivel, arreglos en 0, turno = 0,
@@ -147,7 +171,7 @@ InvConsistente PROC
         xor  ch, ch             ; CX = N
         cmp  repeticion, 0
         jne  icHist
-        ; Facil: un codigo con simbolos repetidos no es posible 
+        ; Facil: un codigo con simbolos repetidos no es posible
         xor  si, si
 icI:
         mov  di, si
@@ -176,7 +200,7 @@ icT:
         jb   icComparar
         jmp  icOk               ; ya coincidio con todos
 icComparar:
-        ;  posiciones iguales
+        ; toros: posiciones iguales
         mov  al, dl
         mov  ah, MAX_N
         mul  ah
@@ -219,7 +243,7 @@ icCnt:
         jb   icCnt
         mov  dh, 1
 icSuma:
-        
+        ; vacas = suma de los minimos de cada simbolo, menos los toros
         mov  al, dl
         xor  ah, ah
         mov  bx, ax
@@ -267,9 +291,11 @@ InvConsistente ENDP
 ; InvBuscar
 ;   Recibe:    invCand[] (por donde va la busqueda), historial[]
 ;   Devuelve:  AL = 1 y intento[] = el siguiente codigo que sobrevive al
-;              descarte; AL = 0 si no queda ninguno (respuestas
-;              contradictorias)
+;              descarte; AL = 0 si no queda ninguno y entonces intento[]
+;              no se modifica
 ;   Destruye:  AX
+; Como las respuestas se validan contra el codigo del jugador, el codigo
+; real siempre sobrevive: AL = 0 no deberia ocurrir.
 InvBuscar PROC
         push cx
         push si
@@ -298,12 +324,36 @@ ibCopia:
         ret
 InvBuscar ENDP
 
+; InvRespuestaCorrecta
+;   Recibe:    intento[] (lo que propuso el programa), secreto[] (el
+;              codigo del jugador), invResp[] (toros y vacas que dijo)
+;   Devuelve:  AL = 1 si lo que dijo el jugador coincide con los toros y
+;              vacas reales; AL = 0 si se equivoco
+;   Destruye:  AX
+; Es el unico uso que el modo inverso le da a secreto[]: no interviene en
+; la deduccion del programa, solo en detectar el error del jugador.
+InvRespuestaCorrecta PROC
+        call EvaluarIntento     ; AL = toros reales, AH = vacas reales
+        cmp  al, invResp
+        jne  ircNo
+        cmp  ah, invResp + 1
+        jne  ircNo
+        mov  al, 1
+        ret
+ircNo:
+        xor  al, al
+        ret
+InvRespuestaCorrecta ENDP
+
 ; DibujarCampoInv
 ;   Recibe:    AL = campo (0 toros, 1 vacas), invCampo, invResp[]
 ;   Devuelve:  el recuadro de ese campo (dorado si es el activo) y su
 ;              numero. Se pinta sin borrar antes (RG-08): el numero lleva
 ;              fondo de panel y el recuadro solo cambia de color.
 ;   Destruye:  nada
+; La respuesta nunca pasa de N (maximo 5), asi que es un solo digito. Se
+; dibuja a la derecha, lejos de la etiqueta, sin usar DibujarNumero porque
+; este agrega un espacio final que taparia el borde del recuadro.
 DibujarCampoInv PROC
         push ax
         push bx
@@ -318,24 +368,28 @@ DibujarCampoInv PROC
         jne  dciMarco
         mov  dl, C_DORADO       ; recuadro del campo activo
 dciMarco:
-        mov  cl, 28
+        mov  cl, 19
         mul  cl
-        add  ax, 38
-        mov  bx, ax             ; BX = y del recuadro (24 px de alto)
+        add  ax, 34
+        mov  bx, ax             ; BX = y del recuadro (18 px de alto)
         RELLENAR_RECT dx, 208, bx, 104, 1
-        RELLENAR_RECT dx, 208, bx, 1, 24
-        RELLENAR_RECT dx, 311, bx, 1, 24
-        add  bx, 23
+        RELLENAR_RECT dx, 208, bx, 1, 18
+        RELLENAR_RECT dx, 311, bx, 1, 18
+        add  bx, 17
         RELLENAR_RECT dx, 208, bx, 104, 1
-        sub  bx, 19             ; y del numero: 4 px bajo el borde superior
+        sub  bx, 16             ; y del numero: dentro del recuadro, bajo el borde
 
         mov  ax, C_PANEL
         mov  fondoTexto, ax
         mov  al, invResp[si]
-        mov  cx, 272
+        add  al, '0'            ; digito 0..5 como caracter
+        mov  numBuf, al
+        mov  numBuf + 1, 0      ; cadena de un solo caracter
+        mov  si, OFFSET numBuf
+        mov  ax, 287            ; x del digito (la etiqueta termina en 279)
         mov  dl, C_TEXTO
         mov  dh, 2
-        call DibujarNumero
+        call DibujarTexto
         mov  fondoTexto, 0FFFFh
 
         pop  si
@@ -360,10 +414,59 @@ DibujarEntradaInv PROC
         ret
 DibujarEntradaInv ENDP
 
+; DibujarCodigoInv
+;   Recibe:    numPos, secreto[] (el codigo que penso el jugador, completo)
+;   Devuelve:  las fichas del codigo en el panel, centradas, en y = 82.
+;              Cada ficha queda a 20 px de la anterior.
+;   Destruye:  nada
+DibujarCodigoInv PROC
+        push ax
+        push bx
+        push cx
+        push dx
+        push si
+
+        mov  al, numPos
+        dec  al
+        mov  bl, 20
+        mul  bl                 ; AX = (N-1) * 20
+        add  ax, FICHA_LADO     ; AX = ancho total de la fila de fichas
+        mov  cx, PAN_W
+        sub  cx, ax
+        shr  cx, 1
+        add  cx, PAN_X          ; CX = x inicial, centrada en el panel
+        xor  si, si
+cdLazo:
+        mov  ax, si
+        mov  bl, 20
+        mul  bl
+        add  ax, cx
+        mov  dx, ax             ; DX = x de esta ficha
+        mov  al, secreto[si]
+        push cx
+        mov  cx, dx
+        mov  bx, 82
+        call DibujarFichaSobre
+        pop  cx
+        inc  si
+        mov  ax, si
+        cmp  al, numPos
+        jb   cdLazo
+
+        pop  si
+        pop  dx
+        pop  cx
+        pop  bx
+        pop  ax
+        ret
+DibujarCodigoInv ENDP
+
 ; DibujarPantallaInv
-;   Recibe:    nivel, partida ya iniciada con InvIniciar
+;   Recibe:    nivel, partida ya iniciada con InvIniciar, y el codigo del
+;              jugador en secreto[] (PedirCodigoInv)
 ;   Devuelve:  encabezado, tablero con el historial, panel con los campos
-;              de respuesta, el intento del programa y los contadores
+;              de respuesta, el codigo del jugador, el intento del programa
+;              y los contadores
 ;   Destruye:  nada
 DibujarPantallaInv PROC
         push ax
@@ -391,15 +494,17 @@ DibujarPantallaInv PROC
         RELLENAR_RECT C_FONDO, TAB_X+1, TAB_Y+1, TAB_W-2, TAB_H-2
         RELLENAR_RECT C_BORDE, PAN_X, PAN_Y, PAN_W, PAN_H
         RELLENAR_RECT C_PANEL, PAN_X+1, PAN_Y+1, PAN_W-2, PAN_H-2
-        TEXTO tInvTu, 212, 25, C_DORADO, 1
-        DIBUJAR_SPRITE EXACTO_0, EXACTO_ANCHO, EXACTO_ALTO, 214, 46
-        TEXTO tToros, 226, 46, C_TEXTO, 1
-        DIBUJAR_SPRITE PARCIAL_0, PARCIAL_ANCHO, PARCIAL_ALTO, 214, 74
-        TEXTO tVacas, 226, 74, C_TEXTO, 1
-        TEXTO tInvMi, 220, 96, C_DORADO, 1
+        TEXTO tInvTu, 212, 24, C_DORADO, 1
+        DIBUJAR_SPRITE EXACTO_0, EXACTO_ANCHO, EXACTO_ALTO, 214, 39
+        TEXTO tToros, 224, 39, C_TEXTO, 1
+        DIBUJAR_SPRITE PARCIAL_0, PARCIAL_ANCHO, PARCIAL_ALTO, 214, 58
+        TEXTO tVacas, 224, 58, C_TEXTO, 1
+        TEXTO tInvCod, 220, 73, C_DORADO, 1
+        TEXTO tInvMi, 220, 99, C_DORADO, 1
 
         call DibujarTablero
         call DibujarEntradaInv
+        call DibujarCodigoInv
         call DibujarIntentoActual
         call DibujarContadores
         mov  si, OFFSET MASCOTA_0
@@ -609,38 +714,175 @@ iccGuardar:
         ret
 InvCambiarCampo ENDP
 
-;   Recibe:    invResp[] (toros, vacas), numPos
-;   Devuelve:  AL = 1 si la respuesta puede existir; 0 si es imposible
-;              (toros + vacas > N, o N-1 toros con 1 vaca)
+; DibujarSlotsCodigo
+;   Recibe:    numPos, secreto[] (0 = casilla vacia)
+;   Devuelve:  las N casillas de 20x20 centradas en y = 100, cada una con
+;              su ficha si ya tiene simbolo (pantalla de pedir el codigo)
+;   Destruye:  nada
+DibujarSlotsCodigo PROC
+        push ax
+        push bx
+        push cx
+        push dx
+        push si
+
+        mov  al, numPos
+        mov  bl, 24
+        mul  bl                 ; AX = ancho de la fila (24 px por casilla)
+        mov  cx, 320
+        sub  cx, ax
+        shr  cx, 1              ; CX = x inicial centrado
+        xor  si, si
+scLazo:
+        mov  ax, si
+        mov  bl, 24
+        mul  bl
+        add  ax, cx
+        mov  dx, ax             ; DX = x de la casilla
+        RELLENAR_RECT C_FILA, dx, 100, 20, 20
+        mov  al, secreto[si]
+        or   al, al
+        jz   scSigue            ; casilla vacia: solo el recuadro
+        push cx
+        mov  cx, dx
+        add  cx, 2              ; ficha de 16 centrada en la casilla de 20
+        mov  bx, 102
+        call DibujarFichaSobre
+        pop  cx
+scSigue:
+        inc  si
+        mov  ax, si
+        cmp  al, numPos
+        jb   scLazo
+
+        pop  si
+        pop  dx
+        pop  cx
+        pop  bx
+        pop  ax
+        ret
+DibujarSlotsCodigo ENDP
+
+; AvisoCodigoInv
+;   Recibe:    DI = cadena (<= 40 caracteres), DL = color
+;   Devuelve:  el texto en la barra de estado
+;   Destruye:  nada
+; Existe para no perder SI, que PedirCodigoInv usa como contador.
+AvisoCodigoInv PROC
+        push si
+        mov  si, di
+        call MostrarEstado
+        pop  si
+        ret
+AvisoCodigoInv ENDP
+
+; PedirCodigoInv
+;   Recibe:    numPos, numColores, repeticion (ya cargados por InvIniciar)
+;   Devuelve:  secreto[0..numPos-1] con el codigo que piensa el jugador;
+;              AL = 1 si lo confirmo con ENTER, AL = 0 si cancelo con ESC
 ;   Destruye:  AX
-InvRespuestaValida PROC
-        mov  al, invResp        ; AL = toros
-        mov  ah, al
-        add  ah, invResp + 1    ; AH = toros + vacas
-        cmp  ah, numPos
-        ja   irvNo
-        mov  ah, numPos
-        dec  ah                 ; AH = N-1
-        cmp  al, ah
-        jne  irvSi
-        cmp  invResp + 1, 1
-        je   irvNo              ; N-1 toros y 1 vaca no existe
-irvSi:
+; El programa NO usa este codigo para deducir: se muestra en el panel como
+; recordatorio y sirve para comprobar las respuestas del jugador
+; (InvRespuestaCorrecta). En Facil no se aceptan simbolos repetidos. El
+; modo inverso no usa secreto[] para nada mas, por eso se aprovecha aqui.
+PedirCodigoInv PROC
+        push bx
+        push cx
+        push dx
+        push si
+        push di
+
+        mov  si, OFFSET tHdrInv
+        mov  di, OFFSET tInvBarraCod
+        call PintarPantalla
+        CENTRAR tInvCod1, 56, C_TEXTO, 1
+        CENTRAR tInvCod2, 68, C_TEXTO, 1
+        CENTRAR tInvCod3, 80, C_DORADO, 1
+
+        xor  bx, bx             ; descartar el codigo de una partida anterior
+pcLimpia:
+        mov  secreto[bx], 0
+        inc  bx
+        cmp  bx, MAX_N
+        jb   pcLimpia
+
+        xor  si, si             ; SI = simbolos ya escritos
+        call DibujarSlotsCodigo
+        call VaciarTeclado
+pcLeer:
+        call EsperarTecla
+        call TraducirTecla
+        cmp  al, ACC_SALIR
+        jne  pcNoEsc
+        xor  al, al             ; ESC: cancelar
+        jmp  pcFin
+pcNoEsc:
+        cmp  al, ACC_BORRAR
+        je   pcBorrar
+        cmp  al, ACC_CONFIRMAR
+        je   pcEnter
+        cmp  al, ACC_SIMBOLO
+        jne  pcLeer             ; otra tecla: ignorar
+        mov  dl, ah             ; DL = ID elegido (AX se destruye abajo)
+        mov  ax, si
+        cmp  al, numPos
+        jae  pcLeer             ; ya estan todas las casillas llenas
+        mov  al, dl
+        call SimboloRepetido    ; en Facil no se aceptan repetidos
+        or   al, al
+        jnz  pcRepetido
+        mov  secreto[si], dl
+        inc  si
+        jmp  pcRefresca
+pcBorrar:
+        or   si, si
+        jz   pcLeer             ; no hay nada que borrar
+        dec  si
+        mov  secreto[si], 0
+pcRefresca:
+        call DibujarSlotsCodigo
+        mov  di, OFFSET tInvBarraCod
+        mov  ax, si
+        cmp  al, numPos
+        jb   pcMensaje
+        mov  di, OFFSET tInvListo   ; codigo completo: falta confirmar
+pcMensaje:
+        mov  dl, C_TEXTO
+        call AvisoCodigoInv
+        jmp  pcLeer
+pcRepetido:
+        mov  di, OFFSET tRepetido
+        mov  dl, C_DORADO
+        call AvisoCodigoInv
+        jmp  pcLeer
+pcEnter:
+        mov  ax, si
+        cmp  al, numPos
+        jae  pcListo
+        mov  di, OFFSET tInvFalta
+        mov  dl, C_DORADO
+        call AvisoCodigoInv
+        jmp  pcLeer
+pcListo:
         mov  al, 1
+pcFin:
+        pop  di
+        pop  si
+        pop  dx
+        pop  cx
+        pop  bx
         ret
-irvNo:
-        xor  al, al
-        ret
-InvRespuestaValida ENDP
+PedirCodigoInv ENDP
 
 ; PartidaInversa
 ;   Recibe:    nivel
-;   Devuelve:  AL = 1 jugar otra vez, 0 volver al menu (ESC, o respuestas
-;              contradictorias)
+;   Devuelve:  AL = 1 jugar otra vez, 0 volver al menu (ESC)
 ;   Destruye:  AX
-;   Ciclo: mostrar el intento del programa -> leer la respuesta del
-;   jugador (flechas o digitos) -> ENTER la valida y la guarda -> el
-;   programa descarta y busca el siguiente intento.
+;   Ciclo: pedir el codigo del jugador -> mostrar el intento del programa
+;   -> leer la respuesta del jugador (flechas o digitos) -> ENTER: se
+;   compara con los toros y vacas reales (si no coincide, se avisa y no se
+;   pinta nada) -> se guarda la respuesta, el programa descarta y busca
+;   el siguiente intento.
 PartidaInversa PROC
         push bx
         push cx
@@ -650,6 +892,11 @@ PartidaInversa PROC
 
         call InvIniciar
         call CargarGeometria
+        call PedirCodigoInv     ; el jugador escribe el codigo que va a pensar
+        or   al, al
+        jnz  pvCodigoOk
+        jmp  pvAbandono         ; ESC: salto largo, la etiqueta queda lejos
+pvCodigoOk:
         call DibujarPantallaInv
         call IniciarCrono       ; el tiempo cuenta desde que aparece el tablero (no se dibuja)
 pvIntento:
@@ -704,7 +951,7 @@ pvValor:
         call InvCambiarCampo
         jmp  pvCambio
 pvCampo:
-        xor  invCampo, 1        ; izquierda o derecha: cambia entre }ficha sbien pouestas y parciales
+        xor  invCampo, 1        ; izquierda o derecha: cambia entre exactos y parciales
 pvCambio:
         mov  si, OFFSET sndCambio
         call IniciarSonido
@@ -718,12 +965,12 @@ pvCambio:
         jmp  pvLeer
 
 pvConfirmar:
-        call InvRespuestaValida
+        call InvRespuestaCorrecta   ; compara con los toros y vacas reales
         or   al, al
         jnz  pvAcepta
-        mov  si, OFFSET sndError
-        call IniciarSonido
-        mov  si, OFFSET tInvImposible
+        mov  si, OFFSET sndError    ; el error es del jugador: no se guarda ni
+        call IniciarSonido          ; se pinta nada, y puede corregir
+        mov  si, OFFSET tInvMal
         mov  dl, C_DORADO
         call InvAvisar
         jmp  pvLeer
@@ -737,26 +984,7 @@ pvAcepta:
         call InvBuscar
         or   al, al
         jnz  pvHayCodigo
-        mov  si, OFFSET sndError
-        call IniciarSonido
-        mov  si, OFFSET tInvSinSol
-        mov  dl, C_DORADO
-        call MostrarEstado
-        mov  cl, numPos         ; sin codigo posible: vaciar "MI INTENTO"
-        xor  ch, ch
-        xor  si, si
-pvBorra:
-        mov  intento[si], 0
-        inc  si
-        loop pvBorra
-        call DibujarIntentoActual
-        call VaciarTeclado
-pvSinSol:
-        call ActualizarSonido
-        call HayTecla
-        jz   pvSinSol
-        call EsperarTecla
-        jmp  pvAbandono
+        jmp  pvAbandono         ; no deberia pasar: el codigo del jugador siempre sobrevive
 pvHayCodigo:
         mov  si, OFFSET sndConfirmar
         call IniciarSonido

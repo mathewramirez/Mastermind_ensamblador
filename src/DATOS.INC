@@ -66,9 +66,11 @@ animFondo       DB 16           ; indice de C_FONDO; PANEL lo cambia a C_PANEL
 
 ; Geometria del tablero por nivel (5 bytes por fila, igual que tablaNiveles):
 
-tablaGeom       DB 10, 16, 196, 24, 18  ; normal
-                DB 10, 16, 196, 18, 16 ; dificil
-                DB 10, 16, 196, 18, 9   ; dificil
+; Geometria del tablero por nivel (5 bytes por fila, igual que tablaNiveles):
+
+tablaGeom       DB  6, 26,  97, 16, 8   ; facil
+                DB 10, 16, 196, 24, 18  ; normal
+                DB 10, 16, 196, 18, 16  ; dificil
 geomFilas       DB 10
 geomAlto        DB 16
 geomAncho       DB 196
