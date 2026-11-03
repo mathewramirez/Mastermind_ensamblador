@@ -203,7 +203,7 @@ diChico:
         push cx
         push si
 
-        mov  cl, numPos
+        mov  cl, numPos 
         inc  cl
         shr  cl, 1              ; CL = iconos por linea (2 con N=4, 3 con N=5)
         xor  ah, ah
