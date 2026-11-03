@@ -1,6 +1,6 @@
 
 ; ANIM.INC - Animacion de 2 cuadros controlada por el reloj del BIOS
-; . La velocidad depende de los tics (18.2 por segundo),
+; (RG-05, RG-06). La velocidad depende de los tics (18.2 por segundo),
 ; Sirve para cualquier sprite de 32x32: la mascota (presentacion y
 ; panel), la victoria y la derrota. Se elige con animSpr0/animSpr1.
 
@@ -12,7 +12,7 @@ ObtenerTics PROC
         push cx
         push dx
         mov  ah, 00h
-        int  1Ah                ; CX:DX = tics 
+        int  1Ah                ; CX:DX = tics desde la medianoche
         mov  ax, dx
         pop  dx
         pop  cx

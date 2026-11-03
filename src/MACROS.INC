@@ -15,7 +15,7 @@ ENDM
 
 ; LIMPIAR_ARREGLO arreglo, cuantos
 ;   Pone en 0 'cuantos' bytes de 'arreglo'.
-;   Requiere: AL = 0, ES = DS y DF = 0 
+;   Requiere: AL = 0, ES = DS y DF = 0 (STOSB escribe en ES:DI).
 ;   Destruye: CX, DI
 LIMPIAR_ARREGLO MACRO arreglo, cuantos
         mov  di, OFFSET arreglo
@@ -27,7 +27,7 @@ ENDM
 ; RELLENAR_RECT color, x, y, ancho, alto
 ;   Apila los 5 parametros y llama a RellenarRect (mismo estilo que
 ;   DIBUJAR_SPRITE). Los parametros pueden ser constantes o registros.
-
+;   Ej:  RELLENAR_RECT C_PANEL, 0, 0, 320, 20
 RELLENAR_RECT MACRO color, px, py, ancho, alto
         push color
         push px

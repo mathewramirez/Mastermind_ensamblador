@@ -396,7 +396,8 @@ jpConfirmar:
         jne  jpTermino
         mov  si, OFFSET sndConfirmar
         call IniciarSonido
-        jmp  jpLeerjjpTermino:
+        jmp  jpLeer
+jpTermino:
         ; la partida termino: congelar el cronometro y dejar ver el tablero
         call FinalizarCrono
         mov  si, OFFSET tFinJ

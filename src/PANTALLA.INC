@@ -7,7 +7,7 @@ PintarPantalla PROC
         push ax
         push bx
         push dx
-        push si 
+        push si
 
         call FundidoSalida      ; la pantalla anterior se apaga...
         mov  fundidoPend, 1     ; ...y la nueva aparece en la primera lectura de tecla
@@ -711,8 +711,8 @@ PantallaInstrucciones ENDP
 
 ;CREDITOS
 
-;PantallaCreditos
-;Recibe: nada.  Devuelve: vuelve al pulsar una tecla.  Destruye: nada
+; PantallaCreditos
+;   Recibe: nada.  Devuelve: vuelve al pulsar una tecla.  Destruye: nada
 PantallaCreditos PROC
         push ax
         push bx

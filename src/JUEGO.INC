@@ -52,10 +52,6 @@ IniciarPartida PROC
         mov  estado, ESTADO_JUGANDO
         call GenerarSecreto
 
-
-
-
-
         pop  es
         pop  di
         pop  cx
